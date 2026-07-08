@@ -1,0 +1,80 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"correctness": {
+                "noUnusedImports": "error",
+                "noUnusedVariables": "warn"
+            }
+		},
+		"domains": {
+			"react": "recommended"
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "single"
+		}
+	},
+	"json": {
+		"parser": {
+			"allowComments": true
+		}
+	},
+	"css": {
+		"parser": {
+			"cssModules": true,
+			"tailwindDirectives": true
+		}
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": {
+					"options": {
+						"groups": [
+							[
+								":BUN:",
+								":NODE:"
+							],
+							":BLANK_LINE:",
+							[
+								":PACKAGE:",
+								"!@myown/**"
+							],
+							":BLANK_LINE:",
+							"@myown/**",
+							":BLANK_LINE:",
+							[
+								":ALIAS:",
+								":PATH:"
+							],
+							":BLANK_LINE:",
+							[
+								"**",
+								"!**/*.css",
+								"!**/*.scss"
+							],
+							":BLANK_LINE:",
+							[
+								"**/*.css",
+								"**/*.scss"
+							]
+						]
+					}
+				}
+			}
+		}
+	}
+}
