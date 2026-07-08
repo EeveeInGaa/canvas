@@ -13,6 +13,25 @@ export function CanvasPrototype() {
         y: 0,
         scale: 1,
     });
+    const baseGridSize = 24;
+    const minVisibleGridSize = 16;
+    const maxVisibleGridSize = 48;
+
+    let canvasGridSize = baseGridSize;
+    let visibleGridSize = canvasGridSize * viewport.scale;
+
+    while (visibleGridSize < minVisibleGridSize) {
+        canvasGridSize *= 2;
+        visibleGridSize = canvasGridSize * viewport.scale;
+    }
+
+    while (visibleGridSize > maxVisibleGridSize) {
+        canvasGridSize /= 2;
+        visibleGridSize = canvasGridSize * viewport.scale;
+    }
+
+    const gridOffsetX = viewport.x % visibleGridSize;
+    const gridOffsetY = viewport.y % visibleGridSize;
 
     const createTextNode = useCallback(
         (event: React.MouseEvent<HTMLDivElement>) => {
@@ -238,11 +257,10 @@ export function CanvasPrototype() {
                 style={{
                     position: 'absolute',
                     inset: 0,
-                    transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.scale})`,
-                    transformOrigin: '0 0',
                     background:
                         'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)',
-                    backgroundSize: '24px 24px',
+                    backgroundSize: `${visibleGridSize}px ${visibleGridSize}px`,
+                    backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
                     pointerEvents: 'none',
                 }}
             />
