@@ -7,6 +7,7 @@ export function CanvasPrototype() {
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const [nodes, setNodes] = useState<CanvasNode[]>([]);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
     const [interaction, setInteraction] = useState<InteractionState>({ type: 'idle' });
     const [viewport, setViewport] = useState<Viewport>({
         x: 0,
@@ -55,7 +56,7 @@ export function CanvasPrototype() {
                 y: canvasPosition.y - defaultHeight / 2,
                 width: defaultWidth,
                 height: defaultHeight,
-                text: 'Text',
+                text: '',
             };
 
             setNodes((currentNodes) => [...currentNodes, newNode]);
@@ -64,9 +65,18 @@ export function CanvasPrototype() {
         [viewport],
     );
 
+    const updateNodeText = useCallback((nodeId: string, text: string) => {
+        setNodes((currentNodes) =>
+            currentNodes.map((node) => (node.id === nodeId ? { ...node, text } : node)),
+        );
+    }, []);
+
     const startDrag = useCallback(
         (event: React.PointerEvent<HTMLDivElement>, node: CanvasNode) => {
             event.stopPropagation();
+            if (editingNodeId === node.id) {
+                return;
+            }
             event.currentTarget.setPointerCapture(event.pointerId);
 
             setSelectedNodeId(node.id);
@@ -79,7 +89,7 @@ export function CanvasPrototype() {
                 startNodeY: node.y,
             });
         },
-        [],
+        [editingNodeId],
     );
 
     const startResize = useCallback(
@@ -235,6 +245,7 @@ export function CanvasPrototype() {
             onPointerDown={(event) => {
                 if (event.currentTarget === event.target) {
                     setSelectedNodeId(null);
+                    setEditingNodeId(null);
                 }
 
                 startPan(event);
@@ -275,12 +286,18 @@ export function CanvasPrototype() {
             >
                 {nodes.map((node) => {
                     const isSelected = selectedNodeId === node.id;
+                    const isEditing = editingNodeId === node.id;
                     const nodeZIndex = isSelected ? 1 : 0;
 
                     return (
                         <div
                             key={node.id}
                             onPointerDown={(event) => startDrag(event, node)}
+                            onDoubleClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedNodeId(node.id);
+                                setEditingNodeId(node.id);
+                            }}
                             style={{
                                 position: 'absolute',
                                 zIndex: nodeZIndex,
@@ -293,20 +310,52 @@ export function CanvasPrototype() {
                                 background: '#1b1d24',
                                 padding: 12,
                                 boxSizing: 'border-box',
-                                cursor: interaction.type === 'dragging' ? 'grabbing' : 'move',
+                                cursor: isEditing ? 'text' : interaction.type === 'dragging' ? 'grabbing' : 'move',
                             }}
                         >
-                            <div
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    overflow: 'hidden',
-                                    fontSize: 16,
-                                    lineHeight: 1.4,
-                                }}
-                            >
-                                {node.text}
-                            </div>
+                            {isEditing ? (
+                                <textarea
+                                    value={node.text}
+                                    autoFocus
+                                    placeholder="Text"
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onChange={(event) => updateNodeText(node.id, event.target.value)}
+                                    onBlur={() => setEditingNodeId(null)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Escape') {
+                                            event.currentTarget.blur();
+                                        }
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        border: 'none',
+                                        outline: 'none',
+                                        resize: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        font: 'inherit',
+                                        lineHeight: 1.4,
+                                        padding: 0,
+                                        margin: 0,
+                                        overflow: 'hidden',
+                                    }}
+                                />
+                            ) : (
+                                <div
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        overflow: 'hidden',
+                                        fontSize: 16,
+                                        lineHeight: 1.4,
+                                        whiteSpace: 'pre-wrap',
+                                        opacity: node.text ? 1 : 0.45,
+                                    }}
+                                >
+                                    {node.text || 'Text'}
+                                </div>
+                            )}
 
                             {isSelected && (
                                 <div
