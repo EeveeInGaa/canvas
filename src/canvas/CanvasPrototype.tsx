@@ -20,6 +20,8 @@ export function CanvasPrototype() {
 	const [nodes, setNodes] = useState<CanvasNode[]>([]);
 	const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
 	const [isSnapEnabled, setIsSnapEnabled] = useState(false);
+	const [isDebugEnabled, setIsDebugEnabled] = useState(false);
+	const [cursorCanvasPosition, setCursorCanvasPosition] = useState<{ x: number; y: number } | null>(null);
 	const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
 	const [interaction, setInteraction] = useState<InteractionState>({
 		type: 'idle',
@@ -256,6 +258,18 @@ export function CanvasPrototype() {
 		(event: React.PointerEvent<HTMLDivElement>) => {
 			const pointerX = event.clientX;
 			const pointerY = event.clientY;
+			const canvasElement = canvasRef.current;
+			if (canvasElement) {
+				const canvasRect = canvasElement.getBoundingClientRect();
+				const canvasPosition = screenToCanvas({
+					screenX: pointerX,
+					screenY: pointerY,
+					canvasRect,
+					viewport,
+				});
+
+				setCursorCanvasPosition(canvasPosition);
+			}
 
 			if (pointerMoveFrameRef.current !== null) {
 				window.cancelAnimationFrame(pointerMoveFrameRef.current);
@@ -557,6 +571,7 @@ export function CanvasPrototype() {
 			onPointerMove={handlePointerMove}
 			onPointerUp={stopInteraction}
 			onPointerCancel={stopInteraction}
+			onPointerLeave={() => setCursorCanvasPosition(null)}
 			onPointerDown={(event) => {
 				if (event.currentTarget === event.target) {
 					setSelectedNodeIds([])
@@ -587,27 +602,52 @@ export function CanvasPrototype() {
 				touchAction: 'none',
 			}}
 		>
-			<button
-				type="button"
-				onPointerDown={(event) => event.stopPropagation()}
-				onClick={() => setIsSnapEnabled((currentValue) => !currentValue)}
+			<div
 				style={{
 					position: 'absolute',
 					top: 12,
 					right: 12,
 					zIndex: 10,
-					border: '1px solid rgba(255,255,255,0.14)',
-					borderRadius: 999,
-					background: isSnapEnabled ? '#7c9cff' : '#1b1d24',
-					color: isSnapEnabled ? '#101217' : 'rgba(255,255,255,0.82)',
-					padding: '6px 10px',
-					fontSize: 12,
-					fontWeight: 600,
-					cursor: 'pointer',
+					display: 'flex',
+					gap: 8,
 				}}
 			>
-				Snap {isSnapEnabled ? 'On' : 'Off'}
-			</button>
+				<button
+					type="button"
+					onPointerDown={(event) => event.stopPropagation()}
+					onClick={() => setIsDebugEnabled((currentValue) => !currentValue)}
+					style={{
+						border: '1px solid rgba(255,255,255,0.14)',
+						borderRadius: 999,
+						background: isDebugEnabled ? '#7c9cff' : '#1b1d24',
+						color: isDebugEnabled ? '#101217' : 'rgba(255,255,255,0.82)',
+						padding: '6px 10px',
+						fontSize: 12,
+						fontWeight: 600,
+						cursor: 'pointer',
+					}}
+				>
+					Debug {isDebugEnabled ? 'On' : 'Off'}
+				</button>
+
+				<button
+					type="button"
+					onPointerDown={(event) => event.stopPropagation()}
+					onClick={() => setIsSnapEnabled((currentValue) => !currentValue)}
+					style={{
+						border: '1px solid rgba(255,255,255,0.14)',
+						borderRadius: 999,
+						background: isSnapEnabled ? '#7c9cff' : '#1b1d24',
+						color: isSnapEnabled ? '#101217' : 'rgba(255,255,255,0.82)',
+						padding: '6px 10px',
+						fontSize: 12,
+						fontWeight: 600,
+						cursor: 'pointer',
+					}}
+				>
+					Snap {isSnapEnabled ? 'On' : 'Off'}
+				</button>
+			</div>
 			<div
 				aria-hidden="true"
 				style={{
@@ -755,6 +795,28 @@ export function CanvasPrototype() {
 					);
 				})}
 			</div>
+			{isDebugEnabled && (
+				<div
+					style={{
+						position: 'absolute',
+						right: 12,
+						bottom: 12,
+						zIndex: 10,
+						border: '1px solid rgba(255,255,255,0.12)',
+						borderRadius: 10,
+						background: 'rgba(27,29,36,0.92)',
+						color: 'rgba(255,255,255,0.82)',
+						padding: '8px 10px',
+						fontFamily: 'monospace',
+						fontSize: 12,
+						lineHeight: 1.4,
+						pointerEvents: 'none',
+					}}
+				>
+					<div>x: {cursorCanvasPosition ? Math.round(cursorCanvasPosition.x) : '—'}</div>
+					<div>y: {cursorCanvasPosition ? Math.round(cursorCanvasPosition.y) : '—'}</div>
+				</div>
+			)}
 		</div>
 	);
 }
