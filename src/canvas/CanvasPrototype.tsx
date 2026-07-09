@@ -86,6 +86,29 @@ export function CanvasPrototype() {
 		[viewport],
 	);
 
+	const duplicateSelectedNodes = useCallback(() => {
+		setNodes((currentNodes) => {
+			const selectedNodes = currentNodes.filter((node) => selectedNodeIds.includes(node.id));
+
+			if (selectedNodes.length === 0) {
+				return currentNodes;
+			}
+
+			const duplicatedNodes = selectedNodes.map((node) => ({
+				...node,
+				id: createId(),
+				x: node.x + 24,
+				y: node.y + 24,
+			}));
+
+			setSelectedNodeIds(duplicatedNodes.map((node) => node.id));
+			setEditingNodeId(null);
+			setInteraction({ type: 'idle' });
+
+			return [...currentNodes, ...duplicatedNodes];
+		});
+	}, [selectedNodeIds]);
+
 	const updateNodeText = useCallback((nodeId: string, text: string) => {
 		setNodes((currentNodes) =>
 			currentNodes.map((node) =>
@@ -435,6 +458,11 @@ export function CanvasPrototype() {
 				event.preventDefault();
 			}
 
+			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd' && !isTextInputTarget) {
+				event.preventDefault();
+				duplicateSelectedNodes();
+			}
+
 			if ((event.key === 'Backspace' || event.key === 'Delete') && !isTextInputTarget) {
 				setNodes((currentNodes) =>
 					currentNodes.filter((node) => !selectedNodeIds.includes(node.id)),
@@ -458,7 +486,7 @@ export function CanvasPrototype() {
 			window.removeEventListener('keydown', handleKeyDown);
 			window.removeEventListener('keyup', handleKeyUp);
 		};
-	}, [selectedNodeIds]);
+	}, [duplicateSelectedNodes, selectedNodeIds]);
 
 	return (
 		<div
