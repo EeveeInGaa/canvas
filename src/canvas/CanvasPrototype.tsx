@@ -424,8 +424,24 @@ export function CanvasPrototype() {
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.code === 'Space') {
+			const target = event.target;
+			const isTextInputTarget =
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				(target instanceof HTMLElement && target.isContentEditable);
+
+			if (event.code === 'Space' && !isTextInputTarget) {
 				isSpacePressedRef.current = true;
+				event.preventDefault();
+			}
+
+			if ((event.key === 'Backspace' || event.key === 'Delete') && !isTextInputTarget) {
+				setNodes((currentNodes) =>
+					currentNodes.filter((node) => !selectedNodeIds.includes(node.id)),
+				);
+				setSelectedNodeIds([]);
+				setEditingNodeId(null);
+				setInteraction({ type: 'idle' });
 			}
 		};
 
@@ -442,7 +458,7 @@ export function CanvasPrototype() {
 			window.removeEventListener('keydown', handleKeyDown);
 			window.removeEventListener('keyup', handleKeyUp);
 		};
-	}, []);
+	}, [selectedNodeIds]);
 
 	return (
 		<div
