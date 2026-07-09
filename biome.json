@@ -12,11 +12,11 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true,
+			"preset": "recommended",
 			"correctness": {
-                "noUnusedImports": "error",
-                "noUnusedVariables": "warn"
-            }
+				"noUnusedImports": "error",
+				"noUnusedVariables": "warn"
+			}
 		},
 		"domains": {
 			"react": "recommended"
@@ -44,35 +44,20 @@
 				"organizeImports": {
 					"options": {
 						"groups": [
-							[
-								":BUN:",
-								":NODE:"
-							],
+							[":BUN:", ":NODE:"],
 							":BLANK_LINE:",
-							[
-								":PACKAGE:",
-								"!@myown/**"
-							],
+							[":PACKAGE:", "!@myown/**"],
 							":BLANK_LINE:",
 							"@myown/**",
 							":BLANK_LINE:",
-							[
-								":ALIAS:",
-								":PATH:"
-							],
+							[":ALIAS:", ":PATH:"],
 							":BLANK_LINE:",
-							[
-								"**",
-								"!**/*.css",
-								"!**/*.scss"
-							],
+							["**", "!**/*.css", "!**/*.scss"],
 							":BLANK_LINE:",
-							[
-								"**/*.css",
-								"**/*.scss"
-							]
+							["**/*.css", "**/*.scss"]
 						]
-					}
+					},
+					"level": "on"
 				}
 			}
 		}

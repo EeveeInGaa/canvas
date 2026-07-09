@@ -1,4 +1,3 @@
 export function Terms() {
-    return <h1>Terms</h1>;
-  }
-  
+	return <h1>Terms</h1>;
+}

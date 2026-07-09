@@ -1,4 +1,3 @@
 export function Imprint() {
-    return <h1>Imprint</h1>;
-  }
-  
+	return <h1>Imprint</h1>;
+}
