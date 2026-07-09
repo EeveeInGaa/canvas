@@ -14,8 +14,10 @@ import {
 export function CanvasPrototype() {
 	const canvasRef = useRef<HTMLDivElement | null>(null);
 	const isSpacePressedRef = useRef(false);
+	const pointerMoveFrameRef = useRef<number | null>(null);
 	const [nodes, setNodes] = useState<CanvasNode[]>([]);
 	const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+	const [isSnapEnabled, setIsSnapEnabled] = useState(false);
 	const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
 	const [interaction, setInteraction] = useState<InteractionState>({
 		type: 'idle',
@@ -54,6 +56,13 @@ export function CanvasPrototype() {
 
 	const gridOffsetX = viewport.x % visibleGridSize;
 	const gridOffsetY = viewport.y % visibleGridSize;
+
+	const snapToGrid = useCallback(
+		(value: number) => {
+			return Math.round(value / canvasGridSize) * canvasGridSize;
+		},
+		[canvasGridSize],
+	);
 
 	const createTextNode = useCallback(
 		(event: React.MouseEvent<HTMLDivElement>) => {
@@ -234,107 +243,120 @@ export function CanvasPrototype() {
 
 	const handlePointerMove = useCallback(
 		(event: React.PointerEvent<HTMLDivElement>) => {
-			if (interaction.type === 'idle') return;
+			const pointerX = event.clientX;
+			const pointerY = event.clientY;
 
-			if (interaction.type === 'panning') {
-				const nextViewportX =
-					interaction.startViewportX +
-					(event.clientX - interaction.startPointerX);
-				const nextViewportY =
-					interaction.startViewportY +
-					(event.clientY - interaction.startPointerY);
-
-				setViewport((currentViewport) => ({
-					...currentViewport,
-					x: nextViewportX,
-					y: nextViewportY,
-				}));
-				return;
+			if (pointerMoveFrameRef.current !== null) {
+				window.cancelAnimationFrame(pointerMoveFrameRef.current);
 			}
 
-			if (interaction.type === 'selecting') {
-				const canvasElement = canvasRef.current;
+			pointerMoveFrameRef.current = window.requestAnimationFrame(() => {
+				pointerMoveFrameRef.current = null;
 
-				if (!canvasElement) {
+				if (interaction.type === 'idle') return;
+
+				if (interaction.type === 'panning') {
+					const nextViewportX = interaction.startViewportX + (pointerX - interaction.startPointerX);
+					const nextViewportY = interaction.startViewportY + (pointerY - interaction.startPointerY);
+
+					setViewport((currentViewport) => ({
+						...currentViewport,
+						x: nextViewportX,
+						y: nextViewportY,
+					}));
 					return;
 				}
 
-				const canvasRect = canvasElement.getBoundingClientRect();
-				const selectionStart = screenToCanvas({
-					screenX: interaction.startX,
-					screenY: interaction.startY,
-					canvasRect,
-					viewport,
-				});
-				const selectionEnd = screenToCanvas({
-					screenX: event.clientX,
-					screenY: event.clientY,
-					canvasRect,
-					viewport,
-				});
+				if (interaction.type === 'selecting') {
+					const canvasElement = canvasRef.current;
 
-				const selectionRect = {
-					x: Math.min(selectionStart.x, selectionEnd.x),
-					y: Math.min(selectionStart.y, selectionEnd.y),
-					width: Math.abs(selectionEnd.x - selectionStart.x),
-					height: Math.abs(selectionEnd.y - selectionStart.y),
-				};
+					if (!canvasElement) {
+						return;
+					}
 
-				const selectedIds = nodes
-					.filter((node) => {
-						const nodeRight = node.x + node.width;
-						const nodeBottom = node.y + node.height;
-						const selectionRight = selectionRect.x + selectionRect.width;
-						const selectionBottom = selectionRect.y + selectionRect.height;
+					const canvasRect = canvasElement.getBoundingClientRect();
+					const selectionStart = screenToCanvas({
+						screenX: interaction.startX,
+						screenY: interaction.startY,
+						canvasRect,
+						viewport,
+					});
+					const selectionEnd = screenToCanvas({
+						screenX: pointerX,
+						screenY: pointerY,
+						canvasRect,
+						viewport,
+					});
 
-						return (
-							node.x < selectionRight &&
-							nodeRight > selectionRect.x &&
-							node.y < selectionBottom &&
-							nodeBottom > selectionRect.y
-						);
-					})
-					.map((node) => node.id);
+					const selectionRect = {
+						x: Math.min(selectionStart.x, selectionEnd.x),
+						y: Math.min(selectionStart.y, selectionEnd.y),
+						width: Math.abs(selectionEnd.x - selectionStart.x),
+						height: Math.abs(selectionEnd.y - selectionStart.y),
+					};
 
-				setSelectedNodeIds(selectedIds);
-				setInteraction({
-					...interaction,
-					currentX: event.clientX,
-					currentY: event.clientY,
-				});
-				return;
-			}
+					const selectedIds = nodes
+						.filter((node) => {
+							const nodeRight = node.x + node.width;
+							const nodeBottom = node.y + node.height;
+							const selectionRight = selectionRect.x + selectionRect.width;
+							const selectionBottom = selectionRect.y + selectionRect.height;
 
-			setNodes((currentNodes) =>
-				currentNodes.map((node) => {
-					const deltaX = (event.clientX - interaction.startPointerX) / viewport.scale;
-					const deltaY = (event.clientY - interaction.startPointerY) / viewport.scale;
+							return (
+								node.x < selectionRight &&
+								nodeRight > selectionRect.x &&
+								node.y < selectionBottom &&
+								nodeBottom > selectionRect.y
+							);
+						})
+						.map((node) => node.id);
 
-					if (interaction.type === 'dragging') {
-						const startNodePosition = interaction.startNodePositions.find(
-							(position) => position.nodeId === node.id,
-						);
+					setSelectedNodeIds(selectedIds);
+					setInteraction({
+						...interaction,
+						currentX: pointerX,
+						currentY: pointerY,
+					});
+					return;
+				}
 
-						if (!startNodePosition) return node;
+				setNodes((currentNodes) =>
+					currentNodes.map((node) => {
+						const deltaX = (pointerX - interaction.startPointerX) / viewport.scale;
+						const deltaY = (pointerY - interaction.startPointerY) / viewport.scale;
+
+						if (interaction.type === 'dragging') {
+							const startNodePosition = interaction.startNodePositions.find(
+								(position) => position.nodeId === node.id,
+							);
+
+							if (!startNodePosition) return node;
+
+							const nextX = startNodePosition.x + deltaX;
+							const nextY = startNodePosition.y + deltaY;
+
+							return {
+								...node,
+								x: isSnapEnabled ? snapToGrid(nextX) : nextX,
+								y: isSnapEnabled ? snapToGrid(nextY) : nextY,
+							};
+						}
+
+						if (node.id !== interaction.nodeId) return node;
+
+						const nextWidth = clampSize(interaction.startWidth + deltaX);
+						const nextHeight = clampSize(interaction.startHeight + deltaY);
 
 						return {
 							...node,
-							x: startNodePosition.x + deltaX,
-							y: startNodePosition.y + deltaY,
+							width: isSnapEnabled ? clampSize(snapToGrid(nextWidth)) : nextWidth,
+							height: isSnapEnabled ? clampSize(snapToGrid(nextHeight)) : nextHeight,
 						};
-					}
-
-					if (node.id !== interaction.nodeId) return node;
-
-					return {
-						...node,
-						width: clampSize(interaction.startWidth + deltaX),
-						height: clampSize(interaction.startHeight + deltaY),
-					};
-				}),
-			);
+					}),
+				);
+			});
 		},
-		[interaction, nodes, viewport],
+		[interaction, isSnapEnabled, nodes, snapToGrid, viewport],
 	);
 
 	const stopInteraction = useCallback(() => {
@@ -442,6 +464,9 @@ export function CanvasPrototype() {
 
 		return () => {
 			canvasElement.removeEventListener('wheel', handleWheel);
+			if (pointerMoveFrameRef.current !== null) {
+				window.cancelAnimationFrame(pointerMoveFrameRef.current);
+			}
 		};
 	}, [handleWheel]);
 
@@ -525,13 +550,34 @@ export function CanvasPrototype() {
 				touchAction: 'none',
 			}}
 		>
+			<button
+				type="button"
+				onPointerDown={(event) => event.stopPropagation()}
+				onClick={() => setIsSnapEnabled((currentValue) => !currentValue)}
+				style={{
+					position: 'absolute',
+					top: 12,
+					right: 12,
+					zIndex: 10,
+					border: '1px solid rgba(255,255,255,0.14)',
+					borderRadius: 999,
+					background: isSnapEnabled ? '#7c9cff' : '#1b1d24',
+					color: isSnapEnabled ? '#101217' : 'rgba(255,255,255,0.82)',
+					padding: '6px 10px',
+					fontSize: 12,
+					fontWeight: 600,
+					cursor: 'pointer',
+				}}
+			>
+				Snap {isSnapEnabled ? 'On' : 'Off'}
+			</button>
 			<div
 				aria-hidden="true"
 				style={{
 					position: 'absolute',
 					inset: 0,
 					background:
-						'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)',
+						'radial-gradient(circle at 0 0, rgba(255,255,255,0.18) 1.5px, transparent 1.5px)',
 					backgroundSize: `${visibleGridSize}px ${visibleGridSize}px`,
 					backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
 					pointerEvents: 'none',
@@ -559,6 +605,8 @@ export function CanvasPrototype() {
 					transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.scale})`,
 					transformOrigin: '0 0',
 					pointerEvents: 'none',
+					willChange: 'transform',
+					contain: 'layout paint size',
 				}}
 			>
 				{nodes.map((node) => {
@@ -582,6 +630,8 @@ export function CanvasPrototype() {
 								width: node.width,
 								height: node.height,
 								transform: `translate3d(${node.x}px, ${node.y}px, 0)`,
+								willChange: interaction.type === 'dragging' && isSelected ? 'transform' : 'auto',
+								overflow: 'visible',
 								border: isSelected
 									? '1px solid #7c9cff'
 									: '1px solid rgba(255,255,255,0.2)',
