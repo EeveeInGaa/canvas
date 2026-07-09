@@ -15,6 +15,8 @@ export function CanvasPrototype() {
 	const canvasRef = useRef<HTMLDivElement | null>(null);
 	const isSpacePressedRef = useRef(false);
 	const pointerMoveFrameRef = useRef<number | null>(null);
+	const nodeElementRefs = useRef(new Map<string, HTMLDivElement>());
+	const latestDraggedNodePositionsRef = useRef(new Map<string, { x: number; y: number }>());
 	const [nodes, setNodes] = useState<CanvasNode[]>([]);
 	const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
 	const [isSnapEnabled, setIsSnapEnabled] = useState(false);
@@ -154,18 +156,27 @@ export function CanvasPrototype() {
 				return;
 			}
 
+			const startNodePositions = nodes
+				.filter((currentNode) => nextSelectedNodeIds.includes(currentNode.id))
+				.map((currentNode) => ({
+					nodeId: currentNode.id,
+					x: currentNode.x,
+					y: currentNode.y,
+				}));
+
+			latestDraggedNodePositionsRef.current = new Map(
+				startNodePositions.map((position) => [
+					position.nodeId,
+					{ x: position.x, y: position.y },
+				]),
+			);
+
 			setInteraction({
 				type: 'dragging',
 				nodeIds: nextSelectedNodeIds,
 				startPointerX: event.clientX,
 				startPointerY: event.clientY,
-				startNodePositions: nodes
-					.filter((currentNode) => nextSelectedNodeIds.includes(currentNode.id))
-					.map((currentNode) => ({
-						nodeId: currentNode.id,
-						x: currentNode.x,
-						y: currentNode.y,
-					})),
+				startNodePositions,
 			});
 		},
 		[editingNodeId, nodes, selectedNodeIds],
@@ -320,28 +331,32 @@ export function CanvasPrototype() {
 					return;
 				}
 
+				const deltaX = (pointerX - interaction.startPointerX) / viewport.scale;
+				const deltaY = (pointerY - interaction.startPointerY) / viewport.scale;
+
+				if (interaction.type === 'dragging') {
+					for (const startNodePosition of interaction.startNodePositions) {
+						const nextX = startNodePosition.x + deltaX;
+						const nextY = startNodePosition.y + deltaY;
+						const finalX = isSnapEnabled ? snapToGrid(nextX) : nextX;
+						const finalY = isSnapEnabled ? snapToGrid(nextY) : nextY;
+						const nodeElement = nodeElementRefs.current.get(startNodePosition.nodeId);
+
+						latestDraggedNodePositionsRef.current.set(startNodePosition.nodeId, {
+							x: finalX,
+							y: finalY,
+						});
+
+						if (nodeElement) {
+							nodeElement.style.transform = `translate3d(${finalX}px, ${finalY}px, 0)`;
+						}
+					}
+
+					return;
+				}
+
 				setNodes((currentNodes) =>
 					currentNodes.map((node) => {
-						const deltaX = (pointerX - interaction.startPointerX) / viewport.scale;
-						const deltaY = (pointerY - interaction.startPointerY) / viewport.scale;
-
-						if (interaction.type === 'dragging') {
-							const startNodePosition = interaction.startNodePositions.find(
-								(position) => position.nodeId === node.id,
-							);
-
-							if (!startNodePosition) return node;
-
-							const nextX = startNodePosition.x + deltaX;
-							const nextY = startNodePosition.y + deltaY;
-
-							return {
-								...node,
-								x: isSnapEnabled ? snapToGrid(nextX) : nextX,
-								y: isSnapEnabled ? snapToGrid(nextY) : nextY,
-							};
-						}
-
 						if (node.id !== interaction.nodeId) return node;
 
 						const nextWidth = clampSize(interaction.startWidth + deltaX);
@@ -360,6 +375,28 @@ export function CanvasPrototype() {
 	);
 
 	const stopInteraction = useCallback(() => {
+		if (interaction.type === 'dragging') {
+			const latestPositions = latestDraggedNodePositionsRef.current;
+
+			setNodes((currentNodes) =>
+				currentNodes.map((node) => {
+					const latestPosition = latestPositions.get(node.id);
+
+					if (!latestPosition) {
+						return node;
+					}
+
+					return {
+						...node,
+						x: latestPosition.x,
+						y: latestPosition.y,
+					};
+				}),
+			);
+
+			latestDraggedNodePositionsRef.current.clear();
+		}
+
 		if (interaction.type === 'selecting') {
 			const canvasElement = canvasRef.current;
 
@@ -617,6 +654,13 @@ export function CanvasPrototype() {
 					return (
 						<div
 							key={node.id}
+							ref={(element) => {
+								if (element) {
+									nodeElementRefs.current.set(node.id, element);
+								} else {
+									nodeElementRefs.current.delete(node.id);
+								}
+							}}
 							onPointerDown={(event) => startDrag(event, node)}
 							onDoubleClick={(event) => {
 								event.stopPropagation();
