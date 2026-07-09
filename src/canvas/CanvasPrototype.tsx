@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type {
 	CanvasNode,
 	InteractionState,
@@ -17,6 +17,7 @@ export function CanvasPrototype() {
 	const pointerMoveFrameRef = useRef<number | null>(null);
 	const nodeElementRefs = useRef(new Map<string, HTMLDivElement>());
 	const latestDraggedNodePositionsRef = useRef(new Map<string, { x: number; y: number }>());
+	const hasCenteredInitialViewportRef = useRef(false);
 	const [nodes, setNodes] = useState<CanvasNode[]>([]);
 	const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
 	const [isSnapEnabled, setIsSnapEnabled] = useState(false);
@@ -67,6 +68,26 @@ export function CanvasPrototype() {
 		},
 		[canvasGridSize],
 	);
+
+	const centerViewportOnOrigin = useCallback(() => {
+		const canvasElement = canvasRef.current;
+		if (!canvasElement) return;
+
+		const canvasRect = canvasElement.getBoundingClientRect();
+
+		setViewport((currentViewport) => ({
+			...currentViewport,
+			x: canvasRect.width / 2,
+			y: canvasRect.height / 2,
+		}));
+	}, []);
+
+	useLayoutEffect(() => {
+		if (hasCenteredInitialViewportRef.current) return;
+
+		centerViewportOnOrigin();
+		hasCenteredInitialViewportRef.current = true;
+	}, [centerViewportOnOrigin]);
 
 	const createTextNode = useCallback(
 		(event: React.MouseEvent<HTMLDivElement>) => {
@@ -615,6 +636,23 @@ export function CanvasPrototype() {
 				<button
 					type="button"
 					onPointerDown={(event) => event.stopPropagation()}
+					onClick={centerViewportOnOrigin}
+					style={{
+						border: '1px solid rgba(255,255,255,0.14)',
+						borderRadius: 999,
+						background: '#1b1d24',
+						color: 'rgba(255,255,255,0.82)',
+						padding: '6px 10px',
+						fontSize: 12,
+						fontWeight: 600,
+						cursor: 'pointer',
+					}}
+				>
+					Center
+				</button>
+				<button
+					type="button"
+					onPointerDown={(event) => event.stopPropagation()}
 					onClick={() => setIsDebugEnabled((currentValue) => !currentValue)}
 					style={{
 						border: '1px solid rgba(255,255,255,0.14)',
@@ -683,7 +721,6 @@ export function CanvasPrototype() {
 					transformOrigin: '0 0',
 					pointerEvents: 'none',
 					willChange: 'transform',
-					contain: 'layout paint size',
 				}}
 			>
 				{nodes.map((node) => {
