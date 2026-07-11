@@ -1,15 +1,3 @@
-export type CanvasNodeType = 'text';
-
-export type CanvasNode = {
-	id: string;
-	type: CanvasNodeType;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	text: string;
-};
-
 export type ResizeHandle = 'bottom-right';
 
 export type InteractionState =
@@ -48,9 +36,3 @@ export type InteractionState =
 			currentX: number;
 			currentY: number;
 	  };
-
-export type Viewport = {
-	x: number;
-	y: number;
-	scale: number;
-};

@@ -1,5 +1,5 @@
-import { CanvasPrototype } from '@/canvas/CanvasPrototype.tsx';
+import { Canvas } from '@/canvas/Canvas.tsx';
 
 export function Home() {
-	return <CanvasPrototype />;
+	return <Canvas />;
 }
