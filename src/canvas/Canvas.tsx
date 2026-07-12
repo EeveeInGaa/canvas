@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { CanvasDebugOverlay } from '@/canvas/components/CanvasDebugOverlay';
 import { CanvasGrid } from '@/canvas/components/CanvasGrid';
 import { CanvasNodeView } from '@/canvas/components/CanvasNodeView';
 import { CanvasSelectionBox } from '@/canvas/components/CanvasSelectionBox';
 import { CanvasToolbar } from '@/canvas/components/CanvasToolbar';
+import { useCanvasHistory } from '@/canvas/hooks/useCanvasHistory';
 import { useCanvasInteractions } from '@/canvas/hooks/useCanvasInteractions';
 import { useCanvasKeyboard } from '@/canvas/hooks/useCanvasKeyboard';
 import { useCanvasViewport } from '@/canvas/hooks/useCanvasViewport';
@@ -14,10 +15,46 @@ import { screenToCanvas } from '@/canvas/utils/coordinates';
 import { getGridMetrics } from '@/canvas/utils/grid';
 import { createTextNode, duplicateNodes } from '@/canvas/utils/node';
 
+function areCanvasNodesEqual(
+	leftNodes: CanvasNode[],
+	rightNodes: CanvasNode[],
+) {
+	if (leftNodes.length !== rightNodes.length) {
+		return false;
+	}
+
+	return leftNodes.every((leftNode, index) => {
+		const rightNode = rightNodes[index];
+
+		return (
+			rightNode &&
+			leftNode.id === rightNode.id &&
+			leftNode.type === rightNode.type &&
+			leftNode.x === rightNode.x &&
+			leftNode.y === rightNode.y &&
+			leftNode.width === rightNode.width &&
+			leftNode.height === rightNode.height &&
+			leftNode.text === rightNode.text
+		);
+	});
+}
+
 export function Canvas() {
 	const canvasRef = useRef<HTMLDivElement | null>(null);
+	const textEditStartNodesRef = useRef<CanvasNode[] | null>(null);
+	const previousEditingNodeIdRef = useRef<string | null>(null);
 
-	const [nodes, setNodes] = useState<CanvasNode[]>([]);
+	const {
+		value: nodes,
+		commit: commitNodes,
+		replace: replaceNodes,
+		record: recordNodesChange,
+		undo,
+		redo,
+		canUndo,
+		canRedo,
+	} = useCanvasHistory<CanvasNode[]>([]);
+
 	const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
 	const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
 
@@ -40,6 +77,47 @@ export function Canvas() {
 		[selectedNodeIds],
 	);
 
+	const commitPendingTextEdit = useCallback(() => {
+		const textEditStartNodes = textEditStartNodesRef.current;
+
+		if (textEditStartNodes && !areCanvasNodesEqual(textEditStartNodes, nodes)) {
+			recordNodesChange(textEditStartNodes);
+		}
+
+		textEditStartNodesRef.current = null;
+	}, [nodes, recordNodesChange]);
+
+	useEffect(() => {
+		if (previousEditingNodeIdRef.current === editingNodeId) {
+			return;
+		}
+
+		if (previousEditingNodeIdRef.current !== null) {
+			commitPendingTextEdit();
+		}
+
+		textEditStartNodesRef.current = editingNodeId !== null ? nodes : null;
+		previousEditingNodeIdRef.current = editingNodeId;
+	}, [commitPendingTextEdit, editingNodeId, nodes]);
+
+	useEffect(() => {
+		const nodeIds = new Set(nodes.map((node) => node.id));
+
+		setSelectedNodeIds((currentSelectedNodeIds) => {
+			const nextSelectedNodeIds = currentSelectedNodeIds.filter((nodeId) =>
+				nodeIds.has(nodeId),
+			);
+
+			return nextSelectedNodeIds.length === currentSelectedNodeIds.length
+				? currentSelectedNodeIds
+				: nextSelectedNodeIds;
+		});
+
+		if (editingNodeId && !nodeIds.has(editingNodeId)) {
+			setEditingNodeId(null);
+		}
+	}, [editingNodeId, nodes]);
+
 	const createNodeAtPointer = useCallback(
 		(event: React.MouseEvent<HTMLDivElement>) => {
 			event.preventDefault();
@@ -59,35 +137,44 @@ export function Canvas() {
 
 			const newNode = createTextNode(position);
 
-			setNodes((currentNodes) => [...currentNodes, newNode]);
+			commitNodes((currentNodes) => [...currentNodes, newNode]);
 
 			setSelectedNodeIds([newNode.id]);
 			setEditingNodeId(newNode.id);
 		},
-		[viewport],
+		[commitNodes, viewport],
 	);
 
-	const updateNodeText = useCallback((nodeId: string, text: string) => {
-		setNodes((currentNodes) =>
-			currentNodes.map((node) =>
-				node.id === nodeId
-					? {
-							...node,
-							text,
-						}
-					: node,
-			),
-		);
-	}, []);
+	const updateNodeText = useCallback(
+		(nodeId: string, text: string) => {
+			replaceNodes((currentNodes) =>
+				currentNodes.map((node) =>
+					node.id === nodeId
+						? {
+								...node,
+								text,
+							}
+						: node,
+				),
+			);
+		},
+		[replaceNodes],
+	);
 
 	const deleteSelectedNodes = useCallback(() => {
-		setNodes((currentNodes) =>
-			currentNodes.filter((node) => !selectedNodeIdSet.has(node.id)),
-		);
+		commitNodes((currentNodes) => {
+			const nextNodes = currentNodes.filter(
+				(node) => !selectedNodeIdSet.has(node.id),
+			);
+
+			return nextNodes.length === currentNodes.length
+				? currentNodes
+				: nextNodes;
+		});
 
 		setSelectedNodeIds([]);
 		setEditingNodeId(null);
-	}, [selectedNodeIdSet]);
+	}, [commitNodes, selectedNodeIdSet]);
 
 	const duplicateSelectedNodes = useCallback(() => {
 		const selectedNodes = nodes.filter((node) =>
@@ -100,11 +187,11 @@ export function Canvas() {
 
 		const duplicatedNodes = duplicateNodes(selectedNodes);
 
-		setNodes((currentNodes) => [...currentNodes, ...duplicatedNodes]);
+		commitNodes((currentNodes) => [...currentNodes, ...duplicatedNodes]);
 
 		setSelectedNodeIds(duplicatedNodes.map((node) => node.id));
 		setEditingNodeId(null);
-	}, [nodes, selectedNodeIdSet]);
+	}, [commitNodes, nodes, selectedNodeIdSet]);
 
 	const startNodeEditing = useCallback((nodeId: string) => {
 		setSelectedNodeIds([nodeId]);
@@ -112,12 +199,27 @@ export function Canvas() {
 	}, []);
 
 	const stopNodeEditing = useCallback(() => {
+		commitPendingTextEdit();
 		setEditingNodeId(null);
-	}, []);
+	}, [commitPendingTextEdit]);
+
+	const handleUndo = useCallback(() => {
+		commitPendingTextEdit();
+		setEditingNodeId(null);
+		undo();
+	}, [commitPendingTextEdit, undo]);
+
+	const handleRedo = useCallback(() => {
+		commitPendingTextEdit();
+		setEditingNodeId(null);
+		redo();
+	}, [commitPendingTextEdit, redo]);
 
 	const { isSpacePressed } = useCanvasKeyboard({
 		onDelete: deleteSelectedNodes,
 		onDuplicate: duplicateSelectedNodes,
+		onUndo: handleUndo,
+		onRedo: handleRedo,
 	});
 
 	const {
@@ -138,7 +240,9 @@ export function Canvas() {
 		isSpacePressed,
 		isSnapEnabled,
 		gridSize: gridMetrics.canvasGridSize,
-		setNodes,
+		setNodes: replaceNodes,
+		commitNodes,
+		recordNodesChange,
 		setSelectedNodeIds,
 		setViewport,
 		setEditingNodeId,
@@ -147,6 +251,8 @@ export function Canvas() {
 
 	return (
 		<div
+			aria-label="Canvas workspace"
+			role="application"
 			ref={canvasRef}
 			onDoubleClick={createNodeAtPointer}
 			onContextMenu={createNodeAtPointer}
@@ -219,13 +325,17 @@ export function Canvas() {
 			<CanvasToolbar
 				isDebugEnabled={isDebugEnabled}
 				isSnapEnabled={isSnapEnabled}
+				canRedo={canRedo}
+				canUndo={canUndo}
 				onCenterViewport={centerViewportOnOrigin}
+				onRedo={handleRedo}
 				onToggleDebug={() => {
 					setIsDebugEnabled((currentValue) => !currentValue);
 				}}
 				onToggleSnap={() => {
 					setIsSnapEnabled((currentValue) => !currentValue);
 				}}
+				onUndo={handleUndo}
 			/>
 
 			{isDebugEnabled && <CanvasDebugOverlay position={cursorCanvasPosition} />}

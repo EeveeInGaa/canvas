@@ -1,17 +1,25 @@
 type CanvasToolbarProps = {
+	canRedo: boolean;
+	canUndo: boolean;
 	isDebugEnabled: boolean;
 	isSnapEnabled: boolean;
 	onCenterViewport: () => void;
+	onRedo: () => void;
 	onToggleDebug: () => void;
 	onToggleSnap: () => void;
+	onUndo: () => void;
 };
 
 export function CanvasToolbar({
+	canRedo,
+	canUndo,
 	isDebugEnabled,
 	isSnapEnabled,
 	onCenterViewport,
+	onRedo,
 	onToggleDebug,
 	onToggleSnap,
+	onUndo,
 }: CanvasToolbarProps) {
 	return (
 		<div
@@ -40,6 +48,42 @@ export function CanvasToolbar({
 				}}
 			>
 				Center
+			</button>
+			<button
+				type="button"
+				disabled={!canUndo}
+				onPointerDown={(event) => event.stopPropagation()}
+				onClick={onUndo}
+				style={{
+					border: '1px solid rgba(255,255,255,0.14)',
+					borderRadius: 999,
+					background: '#1b1d24',
+					color: canUndo ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.32)',
+					padding: '6px 10px',
+					fontSize: 12,
+					fontWeight: 600,
+					cursor: canUndo ? 'pointer' : 'not-allowed',
+				}}
+			>
+				Undo
+			</button>
+			<button
+				type="button"
+				disabled={!canRedo}
+				onPointerDown={(event) => event.stopPropagation()}
+				onClick={onRedo}
+				style={{
+					border: '1px solid rgba(255,255,255,0.14)',
+					borderRadius: 999,
+					background: '#1b1d24',
+					color: canRedo ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.32)',
+					padding: '6px 10px',
+					fontSize: 12,
+					fontWeight: 600,
+					cursor: canRedo ? 'pointer' : 'not-allowed',
+				}}
+			>
+				Redo
 			</button>
 			<button
 				type="button"

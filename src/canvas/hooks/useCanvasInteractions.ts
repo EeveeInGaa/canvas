@@ -30,6 +30,8 @@ type UseCanvasInteractionsParams = {
 	isSnapEnabled: boolean;
 	gridSize: number;
 	setNodes: Dispatch<SetStateAction<CanvasNode[]>>;
+	commitNodes: Dispatch<SetStateAction<CanvasNode[]>>;
+	recordNodesChange: (previousNodes: CanvasNode[]) => void;
 	setSelectedNodeIds: Dispatch<SetStateAction<string[]>>;
 	setViewport: Dispatch<SetStateAction<Viewport>>;
 	setEditingNodeId: Dispatch<SetStateAction<string | null>>;
@@ -80,6 +82,8 @@ export function useCanvasInteractions({
 	isSnapEnabled,
 	gridSize,
 	setNodes,
+	commitNodes,
+	recordNodesChange,
 	setSelectedNodeIds,
 	setViewport,
 	setEditingNodeId,
@@ -291,9 +295,10 @@ export function useCanvasInteractions({
 				startPointerY: event.clientY,
 				startWidth: node.width,
 				startHeight: node.height,
+				startNodes: nodes,
 			});
 		},
-		[setEditingNodeId, setSelectedNodeIds],
+		[nodes, setEditingNodeId, setSelectedNodeIds],
 	);
 
 	const handleCanvasPointerMove = useCallback(
@@ -414,17 +419,29 @@ export function useCanvasInteractions({
 					? clampNodeSize(snapValueToGrid(rawHeight, gridSize))
 					: rawHeight;
 
-				setNodes((currentNodes) =>
-					currentNodes.map((node) =>
-						node.id === interaction.nodeId
-							? {
-									...node,
-									width,
-									height,
-								}
-							: node,
-					),
-				);
+				setNodes((currentNodes) => {
+					let didChange = false;
+
+					const nextNodes = currentNodes.map((node) => {
+						if (node.id !== interaction.nodeId) {
+							return node;
+						}
+
+						if (node.width === width && node.height === height) {
+							return node;
+						}
+
+						didChange = true;
+
+						return {
+							...node,
+							width,
+							height,
+						};
+					});
+
+					return didChange ? nextNodes : currentNodes;
+				});
 			}
 		},
 		[
@@ -452,21 +469,35 @@ export function useCanvasInteractions({
 				]),
 			);
 
-			setNodes((currentNodes) =>
-				currentNodes.map((node) => {
+			commitNodes((currentNodes) => {
+				let didChange = false;
+
+				const nextNodes = currentNodes.map((node) => {
 					const position = positionsByNodeId.get(node.id);
 
 					if (!position) {
 						return node;
 					}
 
+					if (node.x === position.x && node.y === position.y) {
+						return node;
+					}
+
+					didChange = true;
+
 					return {
 						...node,
 						x: position.x,
 						y: position.y,
 					};
-				}),
-			);
+				});
+
+				return didChange ? nextNodes : currentNodes;
+			});
+		}
+
+		if (interaction.type === 'resizing') {
+			recordNodesChange(interaction.startNodes);
 		}
 
 		if (pointerMoveFrameRef.current !== null) {
@@ -477,7 +508,7 @@ export function useCanvasInteractions({
 
 		latestDraggedNodePositionsRef.current = null;
 		setInteraction(IDLE_INTERACTION);
-	}, [interaction, setNodes]);
+	}, [commitNodes, interaction, recordNodesChange]);
 
 	const handleCanvasPointerUp = useCallback(
 		(event: ReactPointerEvent<HTMLDivElement>) => {
