@@ -1,11 +1,14 @@
-import {
-	type ChangeEvent,
-	type PointerEvent,
-	useLayoutEffect,
-	useRef,
-} from 'react';
+import type { PointerEvent } from 'react';
 
-import type { CanvasNode } from '@/canvas/types/canvas-node.types';
+import {
+	LinkNode,
+	type LinkNodeChanges,
+} from '@/canvas/components/nodes/LinkNode.tsx';
+import { TextNode } from '@/canvas/components/nodes/TextNode.tsx';
+import {
+	type CanvasNode,
+	CanvasNodeType,
+} from '@/canvas/types/canvas-node.types';
 
 type CanvasNodeViewProps = {
 	node: CanvasNode;
@@ -24,6 +27,7 @@ type CanvasNodeViewProps = {
 	onStopEditing: () => void;
 	onTextChange: (nodeId: string, text: string) => void;
 	onElementChange: (nodeId: string, element: HTMLDivElement | null) => void;
+	onLinkChange: (nodeId: string, changes: LinkNodeChanges) => void;
 };
 
 export function CanvasNodeView({
@@ -37,22 +41,8 @@ export function CanvasNodeView({
 	onStopEditing,
 	onTextChange,
 	onElementChange,
+	onLinkChange,
 }: CanvasNodeViewProps) {
-	const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-		onTextChange(node.id, event.target.value);
-	};
-
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-	useLayoutEffect(() => {
-		if (!isEditing) {
-			return;
-		}
-
-		textareaRef.current?.focus();
-		textareaRef.current?.select();
-	}, [isEditing]);
-
 	return (
 		<div
 			role="application"
@@ -85,48 +75,22 @@ export function CanvasNodeView({
 				touchAction: 'none',
 			}}
 		>
-			{isEditing ? (
-				<textarea
-					ref={textareaRef}
-					value={node.text}
-					onChange={handleTextChange}
-					onPointerDown={(event) => {
-						event.stopPropagation();
-					}}
-					onBlur={onStopEditing}
-					onKeyDown={(event) => {
-						if (event.key === 'Escape') {
-							event.currentTarget.blur();
-						}
-					}}
-					style={{
-						width: '100%',
-						height: '100%',
-						boxSizing: 'border-box',
-						border: 0,
-						outline: 0,
-						resize: 'none',
-						background: 'transparent',
-						color: 'rgba(255,255,255,0.9)',
-						padding: 12,
-						font: 'inherit',
-					}}
+			{node.type === CanvasNodeType.Text && (
+				<TextNode
+					node={node}
+					isEditing={isEditing}
+					onChange={onTextChange}
+					onStopEditing={onStopEditing}
 				/>
-			) : (
-				<div
-					style={{
-						width: '100%',
-						height: '100%',
-						boxSizing: 'border-box',
-						padding: 12,
-						color: 'rgba(255,255,255,0.9)',
-						whiteSpace: 'pre-wrap',
-						overflowWrap: 'anywhere',
-						overflow: 'hidden',
-					}}
-				>
-					{node.text}
-				</div>
+			)}
+
+			{node.type === CanvasNodeType.Link && (
+				<LinkNode
+					node={node}
+					isEditing={isEditing}
+					onChange={onLinkChange}
+					onStopEditing={onStopEditing}
+				/>
 			)}
 
 			{isSelected && !isEditing && (
@@ -156,7 +120,7 @@ export function CanvasNodeView({
 							borderRadius: '50%',
 							background: 'rgba(124,156,255,0.5)',
 						}}
-					></div>
+					/>
 				</div>
 			)}
 		</div>

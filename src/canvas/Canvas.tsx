@@ -6,20 +6,26 @@ import { CanvasGroupFrame } from '@/canvas/components/CanvasGroupFrame';
 import { CanvasNodeView } from '@/canvas/components/CanvasNodeView';
 import { CanvasSelectionBox } from '@/canvas/components/CanvasSelectionBox';
 import { CanvasToolbar } from '@/canvas/components/CanvasToolbar';
+import type { LinkNodeChanges } from '@/canvas/components/nodes/LinkNode.tsx';
 import { useCanvasHistory } from '@/canvas/hooks/useCanvasHistory';
 import { useCanvasInteractions } from '@/canvas/hooks/useCanvasInteractions';
 import { useCanvasKeyboard } from '@/canvas/hooks/useCanvasKeyboard';
 import { useCanvasViewport } from '@/canvas/hooks/useCanvasViewport';
-import type {
-	CanvasDocument,
-	CanvasGroup,
-	CanvasNode,
+import {
+	type CanvasDocument,
+	type CanvasGroup,
+	type CanvasNode,
+	CanvasNodeType,
 } from '@/canvas/types/canvas-node.types';
 import type { Point } from '@/canvas/types/geometry.types';
 import { screenToCanvas } from '@/canvas/utils/coordinates';
 import { getGridMetrics } from '@/canvas/utils/grid';
 import { createGroupId } from '@/canvas/utils/group';
-import { createTextNode, duplicateNodes } from '@/canvas/utils/node';
+import {
+	createLinkNode,
+	createTextNode,
+	duplicateNodes,
+} from '@/canvas/utils/node';
 
 function areCanvasNodesEqual(
 	leftNodes: CanvasNode[],
@@ -32,16 +38,39 @@ function areCanvasNodesEqual(
 	return leftNodes.every((leftNode, index) => {
 		const rightNode = rightNodes[index];
 
-		return (
-			rightNode &&
+		if (!rightNode) {
+			return false;
+		}
+
+		const sharedFieldsAreEqual =
 			leftNode.id === rightNode.id &&
 			leftNode.type === rightNode.type &&
 			leftNode.x === rightNode.x &&
 			leftNode.y === rightNode.y &&
 			leftNode.width === rightNode.width &&
-			leftNode.height === rightNode.height &&
-			leftNode.text === rightNode.text
-		);
+			leftNode.height === rightNode.height;
+
+		if (!sharedFieldsAreEqual) {
+			return false;
+		}
+
+		if (
+			leftNode.type === CanvasNodeType.Text &&
+			rightNode.type === CanvasNodeType.Text
+		) {
+			return leftNode.text === rightNode.text;
+		}
+
+		if (
+			leftNode.type === CanvasNodeType.Link &&
+			rightNode.type === CanvasNodeType.Link
+		) {
+			return (
+				leftNode.url === rightNode.url && leftNode.label === rightNode.label
+			);
+		}
+
+		return false;
 	});
 }
 
@@ -215,7 +244,37 @@ export function Canvas() {
 		}
 	}, [editingNodeId, groups, nodes, selectedGroupId]);
 
-	const createNodeAtPointer = useCallback(
+	const createNodeAtCanvasCenter = useCallback(
+		(type: CanvasNodeType) => {
+			const canvasElement = canvasRef.current;
+
+			if (!canvasElement) {
+				return;
+			}
+
+			const canvasRect = canvasElement.getBoundingClientRect();
+
+			const position = screenToCanvas({
+				screenX: canvasRect.left + canvasRect.width / 2,
+				screenY: canvasRect.top + canvasRect.height / 2,
+				canvasRect,
+				viewport,
+			});
+
+			const newNode =
+				type === CanvasNodeType.Text
+					? createTextNode(position)
+					: createLinkNode(position);
+
+			commitNodes((currentNodes) => [...currentNodes, newNode]);
+
+			setSelectedNodeIds([newNode.id]);
+			setSelectedGroupId(null);
+			setEditingNodeId(newNode.id);
+		},
+		[commitNodes, viewport],
+	);
+	/*const createNodeAtPointer = useCallback(
 		(event: React.MouseEvent<HTMLDivElement>) => {
 			event.preventDefault();
 
@@ -240,16 +299,40 @@ export function Canvas() {
 			setEditingNodeId(newNode.id);
 		},
 		[commitNodes, viewport],
-	);
+	);*/
+
+	const createTextNodeAtCanvasCenter = useCallback(() => {
+		createNodeAtCanvasCenter(CanvasNodeType.Text);
+	}, [createNodeAtCanvasCenter]);
+
+	const createLinkNodeAtCanvasCenter = useCallback(() => {
+		createNodeAtCanvasCenter(CanvasNodeType.Link);
+	}, [createNodeAtCanvasCenter]);
 
 	const updateNodeText = useCallback(
 		(nodeId: string, text: string) => {
 			replaceNodes((currentNodes) =>
 				currentNodes.map((node) =>
-					node.id === nodeId
+					node.id === nodeId && node.type === CanvasNodeType.Text
 						? {
 								...node,
 								text,
+							}
+						: node,
+				),
+			);
+		},
+		[replaceNodes],
+	);
+
+	const updateLinkNode = useCallback(
+		(nodeId: string, changes: LinkNodeChanges) => {
+			replaceNodes((currentNodes) =>
+				currentNodes.map((node) =>
+					node.id === nodeId && node.type === CanvasNodeType.Link
+						? {
+								...node,
+								...changes,
 							}
 						: node,
 				),
@@ -426,8 +509,6 @@ export function Canvas() {
 			aria-label="Canvas workspace"
 			role="application"
 			ref={canvasRef}
-			onDoubleClick={createNodeAtPointer}
-			onContextMenu={createNodeAtPointer}
 			onPointerDown={handleCanvasPointerDown}
 			onPointerMove={handleCanvasPointerMove}
 			onPointerUp={handleCanvasPointerUp}
@@ -502,6 +583,7 @@ export function Canvas() {
 							onStartEditing={startNodeEditing}
 							onStopEditing={stopNodeEditing}
 							onTextChange={updateNodeText}
+							onLinkChange={updateLinkNode}
 							onElementChange={registerNodeElement}
 						/>
 					))}
@@ -523,6 +605,8 @@ export function Canvas() {
 					setIsSnapEnabled((currentValue) => !currentValue);
 				}}
 				onUndo={handleUndo}
+				onCreateTextNode={createTextNodeAtCanvasCenter}
+				onCreateLinkNode={createLinkNodeAtCanvasCenter}
 			/>
 
 			{isDebugEnabled && <CanvasDebugOverlay position={cursorCanvasPosition} />}

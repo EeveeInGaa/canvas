@@ -1,12 +1,29 @@
-import type { Rect } from '@/canvas/types/geometry.types.ts';
+import type { Rect } from '@/canvas/types/geometry.types';
 
-export type CanvasNodeType = 'text';
+export const CanvasNodeType = {
+	Text: 'text',
+	Link: 'link',
+} as const;
 
-export type CanvasNode = Rect & {
+export type CanvasNodeType =
+	(typeof CanvasNodeType)[keyof typeof CanvasNodeType];
+
+type BaseCanvasNode = Rect & {
 	id: string;
-	type: CanvasNodeType;
+};
+
+export type TextCanvasNode = BaseCanvasNode & {
+	type: typeof CanvasNodeType.Text;
 	text: string;
 };
+
+export type LinkCanvasNode = BaseCanvasNode & {
+	type: typeof CanvasNodeType.Link;
+	url: string;
+	label: string;
+};
+
+export type CanvasNode = TextCanvasNode | LinkCanvasNode;
 
 export type CanvasGroup = {
 	id: string;
