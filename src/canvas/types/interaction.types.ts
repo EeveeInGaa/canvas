@@ -1,4 +1,4 @@
-import type { CanvasNode } from '@/canvas/types/canvas-node.types';
+import type { CanvasDocument } from '@/canvas/types/canvas-node.types';
 
 export type ResizeHandle = 'bottom-right';
 
@@ -23,7 +23,7 @@ export type InteractionState =
 			startPointerY: number;
 			startWidth: number;
 			startHeight: number;
-			startNodes: CanvasNode[];
+			startDocument: CanvasDocument;
 	  }
 	| {
 			type: 'panning';

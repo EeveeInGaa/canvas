@@ -9,7 +9,11 @@ import {
 	useState,
 } from 'react';
 
-import type { CanvasNode } from '@/canvas/types/canvas-node.types';
+import type {
+	CanvasDocument,
+	CanvasGroup,
+	CanvasNode,
+} from '@/canvas/types/canvas-node.types';
 import type { Point, Rect } from '@/canvas/types/geometry.types';
 import type { InteractionState } from '@/canvas/types/interaction.types';
 import type { Viewport } from '@/canvas/types/viewport.types';
@@ -17,12 +21,15 @@ import { screenToCanvas } from '@/canvas/utils/coordinates';
 import {
 	createRectFromPoints,
 	doRectsIntersect,
+	getBoundingRect,
 } from '@/canvas/utils/geometry';
 import { snapValueToGrid } from '@/canvas/utils/grid';
+import { GROUP_FRAME_PADDING } from '@/canvas/utils/group';
 import { clampNodeSize } from '@/canvas/utils/node';
 
 type UseCanvasInteractionsParams = {
 	canvasRef: RefObject<HTMLDivElement | null>;
+	groups: CanvasGroup[];
 	nodes: CanvasNode[];
 	selectedNodeIds: string[];
 	viewport: Viewport;
@@ -31,8 +38,9 @@ type UseCanvasInteractionsParams = {
 	gridSize: number;
 	setNodes: Dispatch<SetStateAction<CanvasNode[]>>;
 	commitNodes: Dispatch<SetStateAction<CanvasNode[]>>;
-	recordNodesChange: (previousNodes: CanvasNode[]) => void;
+	recordDocumentChange: (previousDocument: CanvasDocument) => void;
 	setSelectedNodeIds: Dispatch<SetStateAction<string[]>>;
+	setSelectedGroupId: Dispatch<SetStateAction<string | null>>;
 	setViewport: Dispatch<SetStateAction<Viewport>>;
 	setEditingNodeId: Dispatch<SetStateAction<string | null>>;
 	setCursorCanvasPosition: Dispatch<SetStateAction<Point | null>>;
@@ -43,6 +51,10 @@ type UseCanvasInteractionsResult = {
 	selectionRect: Rect | null;
 
 	registerNodeElement: (nodeId: string, element: HTMLDivElement | null) => void;
+	registerGroupElement: (
+		groupId: string,
+		element: HTMLDivElement | null,
+	) => void;
 
 	handleCanvasPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
 
@@ -55,6 +67,11 @@ type UseCanvasInteractionsResult = {
 	handleNodePointerDown: (
 		event: ReactPointerEvent<HTMLDivElement>,
 		node: CanvasNode,
+	) => void;
+
+	handleGroupPointerDown: (
+		event: ReactPointerEvent<HTMLDivElement>,
+		group: CanvasGroup,
 	) => void;
 
 	handleResizePointerDown: (
@@ -75,6 +92,7 @@ const IDLE_INTERACTION: InteractionState = {
 
 export function useCanvasInteractions({
 	canvasRef,
+	groups,
 	nodes,
 	selectedNodeIds,
 	viewport,
@@ -83,8 +101,9 @@ export function useCanvasInteractions({
 	gridSize,
 	setNodes,
 	commitNodes,
-	recordNodesChange,
+	recordDocumentChange,
 	setSelectedNodeIds,
+	setSelectedGroupId,
 	setViewport,
 	setEditingNodeId,
 	setCursorCanvasPosition,
@@ -93,6 +112,7 @@ export function useCanvasInteractions({
 		useState<InteractionState>(IDLE_INTERACTION);
 
 	const nodeElementRefs = useRef(new Map<string, HTMLDivElement>());
+	const groupElementRefs = useRef(new Map<string, HTMLDivElement>());
 
 	const pointerMoveFrameRef = useRef<number | null>(null);
 
@@ -128,6 +148,18 @@ export function useCanvasInteractions({
 			}
 
 			nodeElementRefs.current.delete(nodeId);
+		},
+		[],
+	);
+
+	const registerGroupElement = useCallback(
+		(groupId: string, element: HTMLDivElement | null) => {
+			if (element) {
+				groupElementRefs.current.set(groupId, element);
+				return;
+			}
+
+			groupElementRefs.current.delete(groupId);
 		},
 		[],
 	);
@@ -198,6 +230,7 @@ export function useCanvasInteractions({
 
 			if (!event.shiftKey) {
 				setSelectedNodeIds([]);
+				setSelectedGroupId(null);
 			}
 
 			setInteraction({
@@ -212,6 +245,7 @@ export function useCanvasInteractions({
 			getCanvasPosition,
 			isSpacePressed,
 			setEditingNodeId,
+			setSelectedGroupId,
 			setSelectedNodeIds,
 			viewport.x,
 			viewport.y,
@@ -229,10 +263,13 @@ export function useCanvasInteractions({
 			event.currentTarget.setPointerCapture(event.pointerId);
 
 			setEditingNodeId(null);
+			setSelectedGroupId(null);
 
 			let nextSelectedNodeIds = selectedNodeIds;
 
-			if (event.metaKey) {
+			const hasSelectionModifier = event.metaKey || event.ctrlKey;
+
+			if (hasSelectionModifier) {
 				nextSelectedNodeIds = selectedNodeIdSet.has(node.id)
 					? selectedNodeIds.filter((nodeId) => nodeId !== node.id)
 					: [...selectedNodeIds, node.id];
@@ -269,6 +306,55 @@ export function useCanvasInteractions({
 			selectedNodeIds,
 			selectedNodeIdSet,
 			setEditingNodeId,
+			setSelectedGroupId,
+			setSelectedNodeIds,
+		],
+	);
+
+	const handleGroupPointerDown = useCallback(
+		(event: ReactPointerEvent<HTMLDivElement>, group: CanvasGroup) => {
+			if (event.button !== 0 || isSpacePressed) {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+
+			event.currentTarget.setPointerCapture(event.pointerId);
+
+			const groupNodeIds = group.nodeIds.filter((nodeId) =>
+				nodes.some((node) => node.id === nodeId),
+			);
+
+			if (groupNodeIds.length === 0) {
+				return;
+			}
+
+			setSelectedGroupId(group.id);
+			setSelectedNodeIds(groupNodeIds);
+			setEditingNodeId(null);
+
+			const startNodePositions = nodes
+				.filter((currentNode) => groupNodeIds.includes(currentNode.id))
+				.map((currentNode) => ({
+					nodeId: currentNode.id,
+					x: currentNode.x,
+					y: currentNode.y,
+				}));
+
+			setInteraction({
+				type: 'dragging',
+				nodeIds: groupNodeIds,
+				startPointerX: event.clientX,
+				startPointerY: event.clientY,
+				startNodePositions,
+			});
+		},
+		[
+			isSpacePressed,
+			nodes,
+			setEditingNodeId,
+			setSelectedGroupId,
 			setSelectedNodeIds,
 		],
 	);
@@ -285,6 +371,7 @@ export function useCanvasInteractions({
 			event.currentTarget.setPointerCapture(event.pointerId);
 
 			setSelectedNodeIds([node.id]);
+			setSelectedGroupId(null);
 			setEditingNodeId(null);
 
 			setInteraction({
@@ -295,10 +382,13 @@ export function useCanvasInteractions({
 				startPointerY: event.clientY,
 				startWidth: node.width,
 				startHeight: node.height,
-				startNodes: nodes,
+				startDocument: {
+					nodes,
+					groups,
+				},
 			});
 		},
-		[nodes, setEditingNodeId, setSelectedNodeIds],
+		[groups, nodes, setEditingNodeId, setSelectedNodeIds, setSelectedGroupId],
 	);
 
 	const handleCanvasPointerMove = useCallback(
@@ -382,6 +472,10 @@ export function useCanvasInteractions({
 				}
 
 				pointerMoveFrameRef.current = requestAnimationFrame(() => {
+					const positionsByNodeId = new Map(
+						nextPositions.map((position) => [position.nodeId, position]),
+					);
+
 					for (const position of nextPositions) {
 						const nodeElement = nodeElementRefs.current.get(position.nodeId);
 
@@ -392,6 +486,58 @@ export function useCanvasInteractions({
 						nodeElement.style.left = `${position.x}px`;
 
 						nodeElement.style.top = `${position.y}px`;
+					}
+
+					for (const group of groups) {
+						if (
+							!group.nodeIds.some((nodeId) => positionsByNodeId.has(nodeId))
+						) {
+							continue;
+						}
+
+						const groupElement = groupElementRefs.current.get(group.id);
+
+						if (!groupElement) {
+							continue;
+						}
+
+						const nextGroupRect = getBoundingRect(
+							group.nodeIds
+								.map((nodeId) => {
+									const currentNode = nodes.find((node) => node.id === nodeId);
+
+									if (!currentNode) {
+										return null;
+									}
+
+									const nextPosition = positionsByNodeId.get(nodeId);
+
+									return {
+										x: nextPosition?.x ?? currentNode.x,
+										y: nextPosition?.y ?? currentNode.y,
+										width: currentNode.width,
+										height: currentNode.height,
+									};
+								})
+								.filter((rect) => rect !== null),
+						);
+
+						if (!nextGroupRect) {
+							continue;
+						}
+
+						groupElement.style.left = `${
+							nextGroupRect.x - GROUP_FRAME_PADDING
+						}px`;
+						groupElement.style.top = `${
+							nextGroupRect.y - GROUP_FRAME_PADDING
+						}px`;
+						groupElement.style.width = `${
+							nextGroupRect.width + GROUP_FRAME_PADDING * 2
+						}px`;
+						groupElement.style.height = `${
+							nextGroupRect.height + GROUP_FRAME_PADDING * 2
+						}px`;
 					}
 
 					pointerMoveFrameRef.current = null;
@@ -447,8 +593,10 @@ export function useCanvasInteractions({
 		[
 			getCanvasPosition,
 			gridSize,
+			groups,
 			interaction,
 			isSnapEnabled,
+			nodes,
 			setCursorCanvasPosition,
 			setNodes,
 			setViewport,
@@ -497,7 +645,7 @@ export function useCanvasInteractions({
 		}
 
 		if (interaction.type === 'resizing') {
-			recordNodesChange(interaction.startNodes);
+			recordDocumentChange(interaction.startDocument);
 		}
 
 		if (pointerMoveFrameRef.current !== null) {
@@ -508,7 +656,7 @@ export function useCanvasInteractions({
 
 		latestDraggedNodePositionsRef.current = null;
 		setInteraction(IDLE_INTERACTION);
-	}, [commitNodes, interaction, recordNodesChange]);
+	}, [commitNodes, interaction, recordDocumentChange]);
 
 	const handleCanvasPointerUp = useCallback(
 		(event: ReactPointerEvent<HTMLDivElement>) => {
@@ -536,11 +684,13 @@ export function useCanvasInteractions({
 		interaction,
 		selectionRect,
 		registerNodeElement,
+		registerGroupElement,
 		handleCanvasPointerDown,
 		handleCanvasPointerMove,
 		handleCanvasPointerUp,
 		handleCanvasPointerCancel,
 		handleNodePointerDown,
+		handleGroupPointerDown,
 		handleResizePointerDown,
 	};
 }

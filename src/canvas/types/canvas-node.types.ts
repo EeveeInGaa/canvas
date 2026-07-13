@@ -7,3 +7,13 @@ export type CanvasNode = Rect & {
 	type: CanvasNodeType;
 	text: string;
 };
+
+export type CanvasGroup = {
+	id: string;
+	nodeIds: string[];
+};
+
+export type CanvasDocument = {
+	nodes: CanvasNode[];
+	groups: CanvasGroup[];
+};

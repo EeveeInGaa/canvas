@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 type UseCanvasKeyboardParams = {
 	onDelete: () => void;
 	onDuplicate: () => void;
+	onGroup?: () => void;
+	onUngroup?: () => void;
 	onUndo?: () => void;
 	onRedo?: () => void;
 };
@@ -14,6 +16,8 @@ type UseCanvasKeyboardResult = {
 export function useCanvasKeyboard({
 	onDelete,
 	onDuplicate,
+	onGroup,
+	onUngroup,
 	onUndo,
 	onRedo,
 }: UseCanvasKeyboardParams): UseCanvasKeyboardResult {
@@ -56,6 +60,17 @@ export function useCanvasKeyboard({
 					onDuplicate();
 					break;
 
+				case 'g':
+					event.preventDefault();
+
+					if (event.shiftKey) {
+						onUngroup?.();
+					} else {
+						onGroup?.();
+					}
+
+					break;
+
 				case 'z':
 					event.preventDefault();
 
@@ -84,7 +99,7 @@ export function useCanvasKeyboard({
 
 			window.removeEventListener('keyup', handleKeyUp);
 		};
-	}, [onDelete, onDuplicate, onUndo, onRedo]);
+	}, [onDelete, onDuplicate, onGroup, onRedo, onUndo, onUngroup]);
 
 	return {
 		isSpacePressed,

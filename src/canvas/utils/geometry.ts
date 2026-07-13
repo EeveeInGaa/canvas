@@ -27,3 +27,21 @@ export function getNodeRect(node: CanvasNode): Rect {
 		height: node.height,
 	};
 }
+
+export function getBoundingRect(rects: Rect[]): Rect | null {
+	if (rects.length === 0) {
+		return null;
+	}
+
+	const minX = Math.min(...rects.map((rect) => rect.x));
+	const minY = Math.min(...rects.map((rect) => rect.y));
+	const maxX = Math.max(...rects.map((rect) => rect.x + rect.width));
+	const maxY = Math.max(...rects.map((rect) => rect.y + rect.height));
+
+	return {
+		x: minX,
+		y: minY,
+		width: maxX - minX,
+		height: maxY - minY,
+	};
+}
