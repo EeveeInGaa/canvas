@@ -140,7 +140,7 @@ export function Canvas() {
 	const groups = canvasDocument.groups;
 
 	const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
-	const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+	const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
 	const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
 
 	const [cursorCanvasPosition, setCursorCanvasPosition] =
@@ -160,6 +160,37 @@ export function Canvas() {
 	const selectedNodeIdSet = useMemo(
 		() => new Set(selectedNodeIds),
 		[selectedNodeIds],
+	);
+
+	const selectedGroupIdSet = useMemo(
+		() => new Set(selectedGroupIds),
+		[selectedGroupIds],
+	);
+
+	const selectedGroupNodeIdSet = useMemo(() => {
+		const nodeIds = new Set<string>();
+
+		for (const group of groups) {
+			if (!selectedGroupIdSet.has(group.id)) {
+				continue;
+			}
+
+			for (const nodeId of group.nodeIds) {
+				nodeIds.add(nodeId);
+			}
+		}
+
+		return nodeIds;
+	}, [groups, selectedGroupIdSet]);
+
+	const effectiveSelectedNodeIdSet = useMemo(
+		() => new Set([...selectedNodeIds, ...selectedGroupNodeIdSet]),
+		[selectedGroupNodeIdSet, selectedNodeIds],
+	);
+
+	const effectiveSelectedNodeIds = useMemo(
+		() => [...effectiveSelectedNodeIdSet],
+		[effectiveSelectedNodeIdSet],
 	);
 
 	const commitNodes = useCallback(
@@ -239,10 +270,16 @@ export function Canvas() {
 			setEditingNodeId(null);
 		}
 
-		if (selectedGroupId && !groupIds.has(selectedGroupId)) {
-			setSelectedGroupId(null);
-		}
-	}, [editingNodeId, groups, nodes, selectedGroupId]);
+		setSelectedGroupIds((currentSelectedGroupIds) => {
+			const nextSelectedGroupIds = currentSelectedGroupIds.filter((groupId) =>
+				groupIds.has(groupId),
+			);
+
+			return nextSelectedGroupIds.length === currentSelectedGroupIds.length
+				? currentSelectedGroupIds
+				: nextSelectedGroupIds;
+		});
+	}, [editingNodeId, groups, nodes]);
 
 	const createNodeAtCanvasCenter = useCallback(
 		(type: CanvasNodeType) => {
@@ -269,7 +306,7 @@ export function Canvas() {
 			commitNodes((currentNodes) => [...currentNodes, newNode]);
 
 			setSelectedNodeIds([newNode.id]);
-			setSelectedGroupId(null);
+			setSelectedGroupIds([]);
 			setEditingNodeId(newNode.id);
 		},
 		[commitNodes, viewport],
@@ -342,13 +379,13 @@ export function Canvas() {
 	);
 
 	const deleteSelectedNodes = useCallback(() => {
-		if (selectedNodeIds.length === 0) {
+		if (effectiveSelectedNodeIdSet.size === 0) {
 			return;
 		}
 
 		commitNodes((currentNodes) => {
 			const nextNodes = currentNodes.filter(
-				(node) => !selectedNodeIdSet.has(node.id),
+				(node) => !effectiveSelectedNodeIdSet.has(node.id),
 			);
 
 			return nextNodes.length === currentNodes.length
@@ -357,13 +394,13 @@ export function Canvas() {
 		});
 
 		setSelectedNodeIds([]);
-		setSelectedGroupId(null);
+		setSelectedGroupIds([]);
 		setEditingNodeId(null);
-	}, [commitNodes, selectedNodeIds.length, selectedNodeIdSet]);
+	}, [commitNodes, effectiveSelectedNodeIdSet]);
 
 	const duplicateSelectedNodes = useCallback(() => {
 		const selectedNodes = nodes.filter((node) =>
-			selectedNodeIdSet.has(node.id),
+			effectiveSelectedNodeIdSet.has(node.id),
 		);
 
 		if (selectedNodes.length === 0) {
@@ -375,13 +412,14 @@ export function Canvas() {
 		commitNodes((currentNodes) => [...currentNodes, ...duplicatedNodes]);
 
 		setSelectedNodeIds(duplicatedNodes.map((node) => node.id));
+		setSelectedGroupIds([]);
 		setEditingNodeId(null);
-	}, [commitNodes, nodes, selectedNodeIdSet]);
+	}, [commitNodes, effectiveSelectedNodeIdSet, nodes]);
 
 	const groupSelectedNodes = useCallback(() => {
 		const existingNodeIds = new Set(nodes.map((node) => node.id));
 
-		const groupNodeIds = [...new Set(selectedNodeIds)].filter((nodeId) =>
+		const groupNodeIds = effectiveSelectedNodeIds.filter((nodeId) =>
 			existingNodeIds.has(nodeId),
 		);
 
@@ -413,37 +451,41 @@ export function Canvas() {
 			};
 		});
 
-		setSelectedNodeIds(groupNodeIds);
-		setSelectedGroupId(newGroup.id);
+		setSelectedNodeIds([]);
+		setSelectedGroupIds([newGroup.id]);
 		setEditingNodeId(null);
-	}, [commitDocument, nodes, selectedNodeIds]);
+	}, [commitDocument, effectiveSelectedNodeIds, nodes]);
 
-	const ungroupSelectedGroup = useCallback(() => {
-		if (!selectedGroupId) {
+	const ungroupSelectedGroups = useCallback(() => {
+		if (selectedGroupIds.length === 0) {
 			return;
 		}
 
-		const selectedGroup = groups.find((group) => group.id === selectedGroupId);
+		const selectedGroupIdSet = new Set(selectedGroupIds);
 
-		if (!selectedGroup) {
-			setSelectedGroupId(null);
-			return;
-		}
+		const ungroupedNodeIds = [
+			...new Set(
+				groups
+					.filter((group) => selectedGroupIdSet.has(group.id))
+					.flatMap((group) => group.nodeIds),
+			),
+		];
 
 		commitDocument((currentDocument) => ({
 			nodes: currentDocument.nodes,
 			groups: currentDocument.groups.filter(
-				(group) => group.id !== selectedGroupId,
+				(group) => !selectedGroupIdSet.has(group.id),
 			),
 		}));
 
-		setSelectedNodeIds(selectedGroup.nodeIds);
-		setSelectedGroupId(null);
+		setSelectedNodeIds(ungroupedNodeIds);
+		setSelectedGroupIds([]);
 		setEditingNodeId(null);
-	}, [commitDocument, groups, selectedGroupId]);
+	}, [commitDocument, groups, selectedGroupIds]);
 
 	const startNodeEditing = useCallback((nodeId: string) => {
 		setSelectedNodeIds([nodeId]);
+		setSelectedGroupIds([]);
 		setEditingNodeId(nodeId);
 	}, []);
 
@@ -470,7 +512,7 @@ export function Canvas() {
 		onUndo: handleUndo,
 		onRedo: handleRedo,
 		onGroup: groupSelectedNodes,
-		onUngroup: ungroupSelectedGroup,
+		onUngroup: ungroupSelectedGroups,
 	});
 
 	const {
@@ -498,7 +540,8 @@ export function Canvas() {
 		commitNodes,
 		recordDocumentChange,
 		setSelectedNodeIds,
-		setSelectedGroupId,
+		selectedGroupIds,
+		setSelectedGroupIds,
 		setViewport,
 		setEditingNodeId,
 		setCursorCanvasPosition,
@@ -552,9 +595,10 @@ export function Canvas() {
 						key={group.id}
 						group={group}
 						nodes={nodes}
-						isSelected={selectedGroupId === group.id}
+						isSelected={selectedGroupIdSet.has(group.id)}
 						isDragging={
-							interaction.type === 'dragging' && selectedGroupId === group.id
+							interaction.type === 'dragging' &&
+							selectedGroupIdSet.has(group.id)
 						}
 						onPointerDown={handleGroupPointerDown}
 						onElementChange={registerGroupElement}
@@ -571,7 +615,8 @@ export function Canvas() {
 							key={node.id}
 							node={node}
 							isSelected={
-								selectedGroupId === null && selectedNodeIdSet.has(node.id)
+								selectedNodeIdSet.has(node.id) &&
+								!selectedGroupNodeIdSet.has(node.id)
 							}
 							isEditing={editingNodeId === node.id}
 							isDragging={

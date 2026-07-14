@@ -24,7 +24,10 @@ import {
 	getBoundingRect,
 } from '@/canvas/utils/geometry';
 import { snapValueToGrid } from '@/canvas/utils/grid';
-import { GROUP_FRAME_PADDING } from '@/canvas/utils/group';
+import {
+	doesRectIntersectGroupFrame,
+	GROUP_FRAME_PADDING,
+} from '@/canvas/utils/group';
 import { clampNodeSize } from '@/canvas/utils/node';
 
 type UseCanvasInteractionsParams = {
@@ -40,7 +43,8 @@ type UseCanvasInteractionsParams = {
 	commitNodes: Dispatch<SetStateAction<CanvasNode[]>>;
 	recordDocumentChange: (previousDocument: CanvasDocument) => void;
 	setSelectedNodeIds: Dispatch<SetStateAction<string[]>>;
-	setSelectedGroupId: Dispatch<SetStateAction<string | null>>;
+	selectedGroupIds: string[];
+	setSelectedGroupIds: Dispatch<SetStateAction<string[]>>;
 	setViewport: Dispatch<SetStateAction<Viewport>>;
 	setEditingNodeId: Dispatch<SetStateAction<string | null>>;
 	setCursorCanvasPosition: Dispatch<SetStateAction<Point | null>>;
@@ -90,11 +94,33 @@ const IDLE_INTERACTION: InteractionState = {
 	type: 'idle',
 };
 
+function getEffectiveSelectedNodeIds(
+	groups: CanvasGroup[],
+	selectedNodeIds: string[],
+	selectedGroupIds: string[],
+): string[] {
+	const effectiveNodeIds = new Set(selectedNodeIds);
+	const selectedGroupIdSet = new Set(selectedGroupIds);
+
+	for (const group of groups) {
+		if (!selectedGroupIdSet.has(group.id)) {
+			continue;
+		}
+
+		for (const nodeId of group.nodeIds) {
+			effectiveNodeIds.add(nodeId);
+		}
+	}
+
+	return [...effectiveNodeIds];
+}
+
 export function useCanvasInteractions({
 	canvasRef,
 	groups,
 	nodes,
 	selectedNodeIds,
+	selectedGroupIds,
 	viewport,
 	isSpacePressed,
 	isSnapEnabled,
@@ -103,7 +129,7 @@ export function useCanvasInteractions({
 	commitNodes,
 	recordDocumentChange,
 	setSelectedNodeIds,
-	setSelectedGroupId,
+	setSelectedGroupIds,
 	setViewport,
 	setEditingNodeId,
 	setCursorCanvasPosition,
@@ -121,6 +147,11 @@ export function useCanvasInteractions({
 	const selectedNodeIdSet = useMemo(
 		() => new Set(selectedNodeIds),
 		[selectedNodeIds],
+	);
+
+	const selectedGroupIdSet = useMemo(
+		() => new Set(selectedGroupIds),
+		[selectedGroupIds],
 	);
 
 	const selectionRect = useMemo<Rect | null>(() => {
@@ -182,22 +213,34 @@ export function useCanvasInteractions({
 		[canvasRef, viewport],
 	);
 
-	const updateSelectedNodesFromRect = useCallback(
+	const updateSelectionFromRect = useCallback(
 		(rect: Rect) => {
+			const nextSelectedGroupIds = groups
+				.filter((group) => doesRectIntersectGroupFrame(rect, group, nodes))
+				.map((group) => group.id);
+
+			const groupedNodeIds = new Set(
+				groups
+					.filter((group) => nextSelectedGroupIds.includes(group.id))
+					.flatMap((group) => group.nodeIds),
+			);
+
 			const nextSelectedNodeIds = nodes
-				.filter((node) =>
-					doRectsIntersect(rect, {
-						x: node.x,
-						y: node.y,
-						width: node.width,
-						height: node.height,
-					}),
+				.filter(
+					(node) =>
+						doRectsIntersect(rect, {
+							x: node.x,
+							y: node.y,
+							width: node.width,
+							height: node.height,
+						}) && !groupedNodeIds.has(node.id),
 				)
 				.map((node) => node.id);
 
+			setSelectedGroupIds(nextSelectedGroupIds);
 			setSelectedNodeIds(nextSelectedNodeIds);
 		},
-		[nodes, setSelectedNodeIds],
+		[groups, nodes, setSelectedGroupIds, setSelectedNodeIds],
 	);
 
 	const handleCanvasPointerDown = useCallback(
@@ -228,9 +271,12 @@ export function useCanvasInteractions({
 				return;
 			}
 
-			if (!event.shiftKey) {
+			const hasSelectionModifier =
+				event.metaKey || event.ctrlKey || event.shiftKey;
+
+			if (!hasSelectionModifier) {
 				setSelectedNodeIds([]);
-				setSelectedGroupId(null);
+				setSelectedGroupIds([]);
 			}
 
 			setInteraction({
@@ -245,7 +291,7 @@ export function useCanvasInteractions({
 			getCanvasPosition,
 			isSpacePressed,
 			setEditingNodeId,
-			setSelectedGroupId,
+			setSelectedGroupIds,
 			setSelectedNodeIds,
 			viewport.x,
 			viewport.y,
@@ -259,33 +305,49 @@ export function useCanvasInteractions({
 			}
 
 			event.stopPropagation();
-
 			event.currentTarget.setPointerCapture(event.pointerId);
-
-			setEditingNodeId(null);
-			setSelectedGroupId(null);
-
-			let nextSelectedNodeIds = selectedNodeIds;
 
 			const hasSelectionModifier = event.metaKey || event.ctrlKey;
 
-			if (hasSelectionModifier) {
-				nextSelectedNodeIds = selectedNodeIdSet.has(node.id)
-					? selectedNodeIds.filter((nodeId) => nodeId !== node.id)
-					: [...selectedNodeIds, node.id];
+			setEditingNodeId(null);
 
-				setSelectedNodeIds(nextSelectedNodeIds);
+			let nextSelectedNodeIds = selectedNodeIds;
+			let nextSelectedGroupIds = selectedGroupIds;
+
+			if (hasSelectionModifier) {
+				if (selectedNodeIdSet.has(node.id)) {
+					nextSelectedNodeIds = selectedNodeIds.filter(
+						(nodeId) => nodeId !== node.id,
+					);
+				} else {
+					nextSelectedNodeIds = [...selectedNodeIds, node.id];
+				}
 			} else if (!selectedNodeIdSet.has(node.id)) {
 				nextSelectedNodeIds = [node.id];
-				setSelectedNodeIds(nextSelectedNodeIds);
+				nextSelectedGroupIds = [];
 			}
 
-			if (!nextSelectedNodeIds.includes(node.id)) {
+			setSelectedNodeIds(nextSelectedNodeIds);
+			setSelectedGroupIds(nextSelectedGroupIds);
+
+			/*
+			 * Nicht auf Reacts nächsten Render warten.
+			 * Die effektive Auswahl direkt aus den eben berechneten
+			 * nächsten Werten erzeugen.
+			 */
+			const nextEffectiveNodeIds = getEffectiveSelectedNodeIds(
+				groups,
+				nextSelectedNodeIds,
+				nextSelectedGroupIds,
+			);
+
+			if (!nextEffectiveNodeIds.includes(node.id)) {
+				setInteraction(IDLE_INTERACTION);
 				return;
 			}
 
 			const startNodePositions = nodes
-				.filter((currentNode) => nextSelectedNodeIds.includes(currentNode.id))
+				.filter((currentNode) => nextEffectiveNodeIds.includes(currentNode.id))
 				.map((currentNode) => ({
 					nodeId: currentNode.id,
 					x: currentNode.x,
@@ -294,19 +356,21 @@ export function useCanvasInteractions({
 
 			setInteraction({
 				type: 'dragging',
-				nodeIds: nextSelectedNodeIds,
+				nodeIds: nextEffectiveNodeIds,
 				startPointerX: event.clientX,
 				startPointerY: event.clientY,
 				startNodePositions,
 			});
 		},
 		[
+			groups,
 			isSpacePressed,
 			nodes,
+			selectedGroupIds,
 			selectedNodeIds,
 			selectedNodeIdSet,
 			setEditingNodeId,
-			setSelectedGroupId,
+			setSelectedGroupIds,
 			setSelectedNodeIds,
 		],
 	);
@@ -319,8 +383,9 @@ export function useCanvasInteractions({
 
 			event.preventDefault();
 			event.stopPropagation();
-
 			event.currentTarget.setPointerCapture(event.pointerId);
+
+			const hasSelectionModifier = event.metaKey || event.ctrlKey;
 
 			const groupNodeIds = group.nodeIds.filter((nodeId) =>
 				nodes.some((node) => node.id === nodeId),
@@ -330,12 +395,39 @@ export function useCanvasInteractions({
 				return;
 			}
 
-			setSelectedGroupId(group.id);
-			setSelectedNodeIds(groupNodeIds);
+			let nextSelectedGroupIds = selectedGroupIds;
+			let nextSelectedNodeIds = selectedNodeIds;
+
+			if (hasSelectionModifier) {
+				nextSelectedGroupIds = selectedGroupIdSet.has(group.id)
+					? selectedGroupIds.filter((groupId) => groupId !== group.id)
+					: [...selectedGroupIds, group.id];
+			} else if (!selectedGroupIdSet.has(group.id)) {
+				/*
+				 * Eine bisher nicht ausgewählte Gruppe wurde
+				 * angefasst: bisherige Auswahl ersetzen.
+				 */
+				nextSelectedGroupIds = [group.id];
+				nextSelectedNodeIds = [];
+			}
+
+			setSelectedGroupIds(nextSelectedGroupIds);
+			setSelectedNodeIds(nextSelectedNodeIds);
 			setEditingNodeId(null);
 
+			const nextEffectiveNodeIds = getEffectiveSelectedNodeIds(
+				groups,
+				nextSelectedNodeIds,
+				nextSelectedGroupIds,
+			);
+
+			if (!nextSelectedGroupIds.includes(group.id)) {
+				setInteraction(IDLE_INTERACTION);
+				return;
+			}
+
 			const startNodePositions = nodes
-				.filter((currentNode) => groupNodeIds.includes(currentNode.id))
+				.filter((currentNode) => nextEffectiveNodeIds.includes(currentNode.id))
 				.map((currentNode) => ({
 					nodeId: currentNode.id,
 					x: currentNode.x,
@@ -344,17 +436,21 @@ export function useCanvasInteractions({
 
 			setInteraction({
 				type: 'dragging',
-				nodeIds: groupNodeIds,
+				nodeIds: nextEffectiveNodeIds,
 				startPointerX: event.clientX,
 				startPointerY: event.clientY,
 				startNodePositions,
 			});
 		},
 		[
+			groups,
 			isSpacePressed,
 			nodes,
+			selectedGroupIds,
+			selectedGroupIdSet,
+			selectedNodeIds,
 			setEditingNodeId,
-			setSelectedGroupId,
+			setSelectedGroupIds,
 			setSelectedNodeIds,
 		],
 	);
@@ -371,7 +467,7 @@ export function useCanvasInteractions({
 			event.currentTarget.setPointerCapture(event.pointerId);
 
 			setSelectedNodeIds([node.id]);
-			setSelectedGroupId(null);
+			setSelectedGroupIds([]);
 			setEditingNodeId(null);
 
 			setInteraction({
@@ -388,7 +484,7 @@ export function useCanvasInteractions({
 				},
 			});
 		},
-		[groups, nodes, setEditingNodeId, setSelectedNodeIds, setSelectedGroupId],
+		[groups, nodes, setEditingNodeId, setSelectedNodeIds, setSelectedGroupIds],
 	);
 
 	const handleCanvasPointerMove = useCallback(
@@ -439,7 +535,7 @@ export function useCanvasInteractions({
 					},
 				);
 
-				updateSelectedNodesFromRect(rect);
+				updateSelectionFromRect(rect);
 
 				return;
 			}
@@ -600,7 +696,7 @@ export function useCanvasInteractions({
 			setCursorCanvasPosition,
 			setNodes,
 			setViewport,
-			updateSelectedNodesFromRect,
+			updateSelectionFromRect,
 			viewport.scale,
 		],
 	);

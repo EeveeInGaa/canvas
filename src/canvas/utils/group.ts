@@ -1,6 +1,10 @@
 import type { CanvasGroup, CanvasNode } from '@/canvas/types/canvas-node.types';
 import type { Rect } from '@/canvas/types/geometry.types';
-import { getBoundingRect, getNodeRect } from '@/canvas/utils/geometry';
+import {
+	doRectsIntersect,
+	getBoundingRect,
+	getNodeRect,
+} from '@/canvas/utils/geometry';
 
 export const GROUP_FRAME_PADDING = 10;
 
@@ -20,4 +24,54 @@ export function getGroupRect(
 		.map(getNodeRect);
 
 	return getBoundingRect(groupRects);
+}
+
+export const GROUP_FRAME_HIT_THICKNESS = 8;
+
+export function doesRectIntersectGroupFrame(
+	rect: Rect,
+	group: CanvasGroup,
+	nodes: CanvasNode[],
+): boolean {
+	const groupRect = getGroupRect(group, nodes);
+
+	if (!groupRect) {
+		return false;
+	}
+
+	const frameRect: Rect = {
+		x: groupRect.x - GROUP_FRAME_PADDING,
+		y: groupRect.y - GROUP_FRAME_PADDING,
+		width: groupRect.width + GROUP_FRAME_PADDING * 2,
+		height: groupRect.height + GROUP_FRAME_PADDING * 2,
+	};
+
+	const frameParts: Rect[] = [
+		{
+			x: frameRect.x,
+			y: frameRect.y,
+			width: frameRect.width,
+			height: GROUP_FRAME_HIT_THICKNESS,
+		},
+		{
+			x: frameRect.x,
+			y: frameRect.y + frameRect.height - GROUP_FRAME_HIT_THICKNESS,
+			width: frameRect.width,
+			height: GROUP_FRAME_HIT_THICKNESS,
+		},
+		{
+			x: frameRect.x,
+			y: frameRect.y,
+			width: GROUP_FRAME_HIT_THICKNESS,
+			height: frameRect.height,
+		},
+		{
+			x: frameRect.x + frameRect.width - GROUP_FRAME_HIT_THICKNESS,
+			y: frameRect.y,
+			width: GROUP_FRAME_HIT_THICKNESS,
+			height: frameRect.height,
+		},
+	];
+
+	return frameParts.some((framePart) => doRectsIntersect(rect, framePart));
 }
