@@ -547,18 +547,30 @@ export function useCanvasInteractions({
 				const deltaY =
 					(event.clientY - interaction.startPointerY) / viewport.scale;
 
+				const selectionStartX = Math.min(
+					...interaction.startNodePositions.map((position) => position.x),
+				);
+
+				const selectionStartY = Math.min(
+					...interaction.startNodePositions.map((position) => position.y),
+				);
+
+				const snappedDeltaX = isSnapEnabled
+					? snapValueToGrid(selectionStartX + deltaX, gridSize) -
+						selectionStartX
+					: deltaX;
+
+				const snappedDeltaY = isSnapEnabled
+					? snapValueToGrid(selectionStartY + deltaY, gridSize) -
+						selectionStartY
+					: deltaY;
+
 				const nextPositions = interaction.startNodePositions.map(
-					(startPosition) => {
-						const rawX = startPosition.x + deltaX;
-
-						const rawY = startPosition.y + deltaY;
-
-						return {
-							nodeId: startPosition.nodeId,
-							x: isSnapEnabled ? snapValueToGrid(rawX, gridSize) : rawX,
-							y: isSnapEnabled ? snapValueToGrid(rawY, gridSize) : rawY,
-						};
-					},
+					(startPosition) => ({
+						nodeId: startPosition.nodeId,
+						x: startPosition.x + snappedDeltaX,
+						y: startPosition.y + snappedDeltaY,
+					}),
 				);
 
 				latestDraggedNodePositionsRef.current = nextPositions;

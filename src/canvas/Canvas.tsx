@@ -19,7 +19,7 @@ import {
 } from '@/canvas/types/canvas-node.types';
 import type { Point } from '@/canvas/types/geometry.types';
 import { screenToCanvas } from '@/canvas/utils/coordinates';
-import { getGridMetrics } from '@/canvas/utils/grid';
+import { getGridMetrics, SNAP_GRID_SIZE } from '@/canvas/utils/grid';
 import { createGroupId } from '@/canvas/utils/group';
 import {
 	createLinkNode,
@@ -535,7 +535,7 @@ export function Canvas() {
 		viewport,
 		isSpacePressed,
 		isSnapEnabled,
-		gridSize: gridMetrics.canvasGridSize,
+		gridSize: SNAP_GRID_SIZE,
 		setNodes: replaceNodes,
 		commitNodes,
 		recordDocumentChange,

@@ -14,9 +14,11 @@ type GetGridMetricsOptions = {
 	maxVisibleGridSize?: number;
 };
 
+export const SNAP_GRID_SIZE = 24;
+
 export function getGridMetrics({
 	viewport,
-	baseGridSize = 24,
+	baseGridSize = SNAP_GRID_SIZE,
 	minVisibleGridSize = 16,
 	maxVisibleGridSize = 48,
 }: GetGridMetricsOptions): GridMetrics {

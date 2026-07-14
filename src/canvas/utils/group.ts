@@ -5,8 +5,9 @@ import {
 	getBoundingRect,
 	getNodeRect,
 } from '@/canvas/utils/geometry';
+import { SNAP_GRID_SIZE } from '@/canvas/utils/grid.ts';
 
-export const GROUP_FRAME_PADDING = 10;
+export const GROUP_FRAME_PADDING = SNAP_GRID_SIZE;
 
 export function createGroupId(): string {
 	return crypto.randomUUID();
