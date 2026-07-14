@@ -45,3 +45,12 @@ export function getBoundingRect(rects: Rect[]): Rect | null {
 		height: maxY - minY,
 	};
 }
+
+export function isPointInsideRect(point: Point, rect: Rect): boolean {
+	return (
+		point.x >= rect.x &&
+		point.x <= rect.x + rect.width &&
+		point.y >= rect.y &&
+		point.y <= rect.y + rect.height
+	);
+}

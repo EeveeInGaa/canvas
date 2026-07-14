@@ -6,6 +6,7 @@ export type InteractionState =
 	| { type: 'idle' }
 	| {
 			type: 'dragging';
+			dragSource: 'node' | 'group';
 			nodeIds: string[];
 			startPointerX: number;
 			startPointerY: number;

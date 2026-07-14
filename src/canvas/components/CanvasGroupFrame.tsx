@@ -8,6 +8,7 @@ type CanvasGroupFrameProps = {
 	isDragging: boolean;
 	isSelected: boolean;
 	nodes: CanvasNode[];
+	isDropTarget: boolean;
 	onElementChange: (groupId: string, element: HTMLDivElement | null) => void;
 	onPointerDown: (
 		event: PointerEvent<HTMLDivElement>,
@@ -20,6 +21,7 @@ export function CanvasGroupFrame({
 	isDragging,
 	isSelected,
 	nodes,
+	isDropTarget,
 	onElementChange,
 	onPointerDown,
 }: CanvasGroupFrameProps) {
@@ -48,8 +50,16 @@ export function CanvasGroupFrame({
 				width: groupRect.width + GROUP_FRAME_PADDING * 2,
 				height: groupRect.height + GROUP_FRAME_PADDING * 2,
 				boxSizing: 'border-box',
-				border: `1px solid ${borderColor}`,
-				borderRadius: 14,
+				borderRadius: 16,
+				border: isDropTarget
+					? `2px solid ${borderColor}`
+					: isSelected
+						? '1px solid rgba(124,156,255,0.9)'
+						: '1px solid rgba(124,156,255,0.45)',
+				background: isDropTarget ? 'rgba(124,156,255,0.05)' : 'transparent',
+				boxShadow: isDropTarget ? '0 0 0 4px rgba(124,156,255,0.12)' : 'none',
+				transition:
+					'border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease',
 				pointerEvents: 'none',
 				zIndex: 1,
 			}}

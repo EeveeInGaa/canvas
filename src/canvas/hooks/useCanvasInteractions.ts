@@ -26,6 +26,7 @@ import {
 import { snapValueToGrid } from '@/canvas/utils/grid';
 import {
 	doesRectIntersectGroupFrame,
+	findGroupDropTarget,
 	GROUP_FRAME_PADDING,
 } from '@/canvas/utils/group';
 import { clampNodeSize } from '@/canvas/utils/node';
@@ -40,7 +41,7 @@ type UseCanvasInteractionsParams = {
 	isSnapEnabled: boolean;
 	gridSize: number;
 	setNodes: Dispatch<SetStateAction<CanvasNode[]>>;
-	commitNodes: Dispatch<SetStateAction<CanvasNode[]>>;
+	commitDocument: Dispatch<SetStateAction<CanvasDocument>>;
 	recordDocumentChange: (previousDocument: CanvasDocument) => void;
 	setSelectedNodeIds: Dispatch<SetStateAction<string[]>>;
 	selectedGroupIds: string[];
@@ -53,6 +54,7 @@ type UseCanvasInteractionsParams = {
 type UseCanvasInteractionsResult = {
 	interaction: InteractionState;
 	selectionRect: Rect | null;
+	dropTargetGroupId: string | null;
 
 	registerNodeElement: (nodeId: string, element: HTMLDivElement | null) => void;
 	registerGroupElement: (
@@ -126,7 +128,7 @@ export function useCanvasInteractions({
 	isSnapEnabled,
 	gridSize,
 	setNodes,
-	commitNodes,
+	commitDocument,
 	recordDocumentChange,
 	setSelectedNodeIds,
 	setSelectedGroupIds,
@@ -136,6 +138,10 @@ export function useCanvasInteractions({
 }: UseCanvasInteractionsParams): UseCanvasInteractionsResult {
 	const [interaction, setInteraction] =
 		useState<InteractionState>(IDLE_INTERACTION);
+
+	const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(
+		null,
+	);
 
 	const nodeElementRefs = useRef(new Map<string, HTMLDivElement>());
 	const groupElementRefs = useRef(new Map<string, HTMLDivElement>());
@@ -314,6 +320,10 @@ export function useCanvasInteractions({
 			let nextSelectedNodeIds = selectedNodeIds;
 			let nextSelectedGroupIds = selectedGroupIds;
 
+			const currentEffectiveNodeIdSet = new Set(
+				getEffectiveSelectedNodeIds(groups, selectedNodeIds, selectedGroupIds),
+			);
+
 			if (hasSelectionModifier) {
 				if (selectedNodeIdSet.has(node.id)) {
 					nextSelectedNodeIds = selectedNodeIds.filter(
@@ -322,7 +332,7 @@ export function useCanvasInteractions({
 				} else {
 					nextSelectedNodeIds = [...selectedNodeIds, node.id];
 				}
-			} else if (!selectedNodeIdSet.has(node.id)) {
+			} else if (!currentEffectiveNodeIdSet.has(node.id)) {
 				nextSelectedNodeIds = [node.id];
 				nextSelectedGroupIds = [];
 			}
@@ -356,6 +366,7 @@ export function useCanvasInteractions({
 
 			setInteraction({
 				type: 'dragging',
+				dragSource: 'node',
 				nodeIds: nextEffectiveNodeIds,
 				startPointerX: event.clientX,
 				startPointerY: event.clientY,
@@ -436,6 +447,7 @@ export function useCanvasInteractions({
 
 			setInteraction({
 				type: 'dragging',
+				dragSource: 'group',
 				nodeIds: nextEffectiveNodeIds,
 				startPointerX: event.clientX,
 				startPointerY: event.clientY,
@@ -572,6 +584,47 @@ export function useCanvasInteractions({
 						y: startPosition.y + snappedDeltaY,
 					}),
 				);
+
+				const canJoinGroup =
+					interaction.dragSource === 'node' && interaction.nodeIds.length === 1;
+
+				if (canJoinGroup) {
+					const draggedNodeId = interaction.nodeIds[0];
+
+					const nextPosition = nextPositions.find(
+						(position) => position.nodeId === draggedNodeId,
+					);
+
+					const draggedNode = nodes.find((node) => node.id === draggedNodeId);
+
+					if (draggedNode && nextPosition) {
+						const previewNodes = nodes.map((node) =>
+							node.id === draggedNodeId
+								? {
+										...node,
+										x: nextPosition.x,
+										y: nextPosition.y,
+									}
+								: node,
+						);
+
+						const targetGroup = findGroupDropTarget(
+							{
+								...draggedNode,
+								x: nextPosition.x,
+								y: nextPosition.y,
+							},
+							groups,
+							previewNodes,
+						);
+
+						setDropTargetGroupId(targetGroup?.id ?? null);
+					} else {
+						setDropTargetGroupId(null);
+					}
+				} else {
+					setDropTargetGroupId(null);
+				}
 
 				latestDraggedNodePositionsRef.current = nextPositions;
 
@@ -725,10 +778,10 @@ export function useCanvasInteractions({
 				]),
 			);
 
-			commitNodes((currentNodes) => {
-				let didChange = false;
+			commitDocument((currentDocument) => {
+				let didNodesChange = false;
 
-				const nextNodes = currentNodes.map((node) => {
+				const nextNodes = currentDocument.nodes.map((node) => {
 					const position = positionsByNodeId.get(node.id);
 
 					if (!position) {
@@ -739,7 +792,7 @@ export function useCanvasInteractions({
 						return node;
 					}
 
-					didChange = true;
+					didNodesChange = true;
 
 					return {
 						...node,
@@ -748,7 +801,74 @@ export function useCanvasInteractions({
 					};
 				});
 
-				return didChange ? nextNodes : currentNodes;
+				if (!didNodesChange) {
+					return currentDocument;
+				}
+
+				/*
+				 * Automatisches Hinzufügen nur bei genau einer
+				 * einzeln bewegten Node.
+				 */
+				const canJoinGroup =
+					interaction.dragSource === 'node' && interaction.nodeIds.length === 1;
+
+				if (!canJoinGroup) {
+					return {
+						nodes: nextNodes,
+						groups: currentDocument.groups,
+					};
+				}
+
+				const draggedNodeId = interaction.nodeIds[0];
+
+				const draggedNode = nextNodes.find((node) => node.id === draggedNodeId);
+
+				if (!draggedNode) {
+					return {
+						nodes: nextNodes,
+						groups: currentDocument.groups,
+					};
+				}
+
+				const targetGroup = findGroupDropTarget(
+					draggedNode,
+					currentDocument.groups,
+					nextNodes,
+				);
+
+				if (!targetGroup) {
+					return {
+						nodes: nextNodes,
+						groups: currentDocument.groups,
+					};
+				}
+
+				const nextGroups = currentDocument.groups.map((group) => {
+					/*
+					 * Bei einem Wechsel in eine andere Gruppe
+					 * die Node aus der bisherigen Gruppe entfernen.
+					 */
+					const nodeIds = group.nodeIds.filter(
+						(nodeId) => nodeId !== draggedNodeId,
+					);
+
+					if (group.id !== targetGroup.id) {
+						return {
+							...group,
+							nodeIds,
+						};
+					}
+
+					return {
+						...group,
+						nodeIds: [...nodeIds, draggedNodeId],
+					};
+				});
+
+				return {
+					nodes: nextNodes,
+					groups: nextGroups.filter((group) => group.nodeIds.length >= 2),
+				};
 			});
 		}
 
@@ -763,8 +883,9 @@ export function useCanvasInteractions({
 		}
 
 		latestDraggedNodePositionsRef.current = null;
+		setDropTargetGroupId(null);
 		setInteraction(IDLE_INTERACTION);
-	}, [commitNodes, interaction, recordDocumentChange]);
+	}, [commitDocument, interaction, recordDocumentChange]);
 
 	const handleCanvasPointerUp = useCallback(
 		(event: ReactPointerEvent<HTMLDivElement>) => {
@@ -791,6 +912,7 @@ export function useCanvasInteractions({
 	return {
 		interaction,
 		selectionRect,
+		dropTargetGroupId,
 		registerNodeElement,
 		registerGroupElement,
 		handleCanvasPointerDown,

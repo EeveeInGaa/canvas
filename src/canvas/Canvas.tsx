@@ -518,6 +518,7 @@ export function Canvas() {
 	const {
 		interaction,
 		selectionRect,
+		dropTargetGroupId,
 		registerNodeElement,
 		registerGroupElement,
 		handleCanvasPointerDown,
@@ -537,7 +538,7 @@ export function Canvas() {
 		isSnapEnabled,
 		gridSize: SNAP_GRID_SIZE,
 		setNodes: replaceNodes,
-		commitNodes,
+		commitDocument,
 		recordDocumentChange,
 		setSelectedNodeIds,
 		selectedGroupIds,
@@ -600,6 +601,7 @@ export function Canvas() {
 							interaction.type === 'dragging' &&
 							selectedGroupIdSet.has(group.id)
 						}
+						isDropTarget={dropTargetGroupId === group.id}
 						onPointerDown={handleGroupPointerDown}
 						onElementChange={registerGroupElement}
 					/>
