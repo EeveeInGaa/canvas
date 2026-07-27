@@ -1,7 +1,5 @@
-import { Outlet, useMatches, type UIMatch } from 'react-router-dom';
-import { Footer } from '@/core/Footer';
-import { Header } from '@/core/Header';
 import { useEffect } from 'react';
+import { Outlet, type UIMatch, useMatches } from 'react-router-dom';
 
 type RouteHandle = {
 	title?: string;
@@ -19,11 +17,9 @@ export function RootLayout() {
 
 	return (
 		<div className="flex min-h-screen flex-col">
-			<Header />
 			<main className="grow custom-container mt-lg">
 				<Outlet />
 			</main>
-			<Footer />
 		</div>
 	);
 }
