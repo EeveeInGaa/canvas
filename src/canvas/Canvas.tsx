@@ -416,6 +416,29 @@ export function Canvas() {
 		setEditingNodeId(null);
 	}, [commitNodes, effectiveSelectedNodeIdSet, nodes]);
 
+	const moveSelectedNodes = useCallback(
+		(deltaX: number, deltaY: number) => {
+			if (effectiveSelectedNodeIdSet.size === 0) {
+				return false;
+			}
+
+			commitNodes((currentNodes) =>
+				currentNodes.map((node) =>
+					effectiveSelectedNodeIdSet.has(node.id)
+						? {
+								...node,
+								x: node.x + deltaX,
+								y: node.y + deltaY,
+							}
+						: node,
+				),
+			);
+
+			return true;
+		},
+		[commitNodes, effectiveSelectedNodeIdSet],
+	);
+
 	const groupSelectedNodes = useCallback(() => {
 		const existingNodeIds = new Set(nodes.map((node) => node.id));
 
@@ -507,8 +530,11 @@ export function Canvas() {
 	}, [commitPendingTextEdit, redo]);
 
 	const { isSpacePressed } = useCanvasKeyboard({
+		moveDistance: isSnapEnabled ? SNAP_GRID_SIZE : 5,
+		shiftMoveDistance: isSnapEnabled ? SNAP_GRID_SIZE * 2 : 20,
 		onDelete: deleteSelectedNodes,
 		onDuplicate: duplicateSelectedNodes,
+		onMoveSelection: moveSelectedNodes,
 		onUndo: handleUndo,
 		onRedo: handleRedo,
 		onGroup: groupSelectedNodes,

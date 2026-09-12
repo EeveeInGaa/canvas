@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react';
 
+const ARROW_DIRECTIONS: Partial<Record<string, readonly [number, number]>> = {
+	ArrowUp: [0, -1],
+	ArrowRight: [1, 0],
+	ArrowDown: [0, 1],
+	ArrowLeft: [-1, 0],
+};
+
 type UseCanvasKeyboardParams = {
+	moveDistance: number;
+	shiftMoveDistance: number;
 	onDelete: () => void;
 	onDuplicate: () => void;
+	onMoveSelection?: (deltaX: number, deltaY: number) => boolean;
 	onGroup?: () => void;
 	onUngroup?: () => void;
 	onUndo?: () => void;
@@ -14,8 +24,11 @@ type UseCanvasKeyboardResult = {
 };
 
 export function useCanvasKeyboard({
+	moveDistance,
+	shiftMoveDistance,
 	onDelete,
 	onDuplicate,
+	onMoveSelection,
 	onGroup,
 	onUngroup,
 	onUndo,
@@ -40,6 +53,19 @@ export function useCanvasKeyboard({
 				event.preventDefault();
 				setIsSpacePressed(true);
 				return;
+			}
+
+			if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+				const distance = event.shiftKey ? shiftMoveDistance : moveDistance;
+				const direction = ARROW_DIRECTIONS[event.key];
+
+				if (
+					direction &&
+					onMoveSelection?.(direction[0] * distance, direction[1] * distance)
+				) {
+					event.preventDefault();
+					return;
+				}
 			}
 
 			if (event.key === 'Backspace' || event.key === 'Delete') {
@@ -99,7 +125,17 @@ export function useCanvasKeyboard({
 
 			window.removeEventListener('keyup', handleKeyUp);
 		};
-	}, [onDelete, onDuplicate, onGroup, onRedo, onUndo, onUngroup]);
+	}, [
+		moveDistance,
+		onDelete,
+		onDuplicate,
+		onGroup,
+		onMoveSelection,
+		onRedo,
+		onUndo,
+		onUngroup,
+		shiftMoveDistance,
+	]);
 
 	return {
 		isSpacePressed,
