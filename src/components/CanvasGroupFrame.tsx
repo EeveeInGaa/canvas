@@ -1,7 +1,7 @@
 import type { PointerEvent } from 'react';
 
-import type { CanvasGroup, CanvasNode } from '@/canvas/types/canvas-node.types';
-import { GROUP_FRAME_PADDING, getGroupRect } from '@/canvas/utils/group';
+import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types.ts';
+import { GROUP_FRAME_PADDING, getGroupRect } from '@/utils/group.ts';
 
 type CanvasGroupFrameProps = {
 	group: CanvasGroup;

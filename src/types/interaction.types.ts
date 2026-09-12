@@ -1,4 +1,4 @@
-import type { CanvasDocument } from '@/canvas/types/canvas-node.types';
+import type { CanvasDocument } from '@/types/canvas-node.types.ts';
 
 export type ResizeHandle = 'bottom-right';
 

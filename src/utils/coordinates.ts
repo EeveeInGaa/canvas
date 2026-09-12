@@ -1,5 +1,5 @@
-import type { Point } from '@/canvas/types/geometry.types.ts';
-import type { Viewport } from '@/canvas/types/viewport.types.ts';
+import type { Point } from '@/types/geometry.types.ts';
+import type { Viewport } from '@/types/viewport.types.ts';
 
 type ScreenToCanvasParams = {
 	screenX: number;
@@ -20,12 +20,5 @@ export function screenToCanvas({
 	return {
 		x: (localX - viewport.x) / viewport.scale,
 		y: (localY - viewport.y) / viewport.scale,
-	};
-}
-
-export function screenDeltaToCanvasDelta(delta: Point, scale: number): Point {
-	return {
-		x: delta.x / scale,
-		y: delta.y / scale,
 	};
 }

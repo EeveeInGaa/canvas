@@ -1,4 +1,4 @@
-import type { Point } from '@/canvas/types/geometry.types';
+import type { Point } from '@/types/geometry.types.ts';
 
 type CanvasDebugOverlayProps = {
 	position: Point | null;

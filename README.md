@@ -30,3 +30,4 @@ To start the application, run `pnpm dev` and open http://localhost:5173/.
 - export to PDF option
 - option to add images
 - add fixed sizes for canvas and dynamic resize
+- tests

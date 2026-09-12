@@ -1,6 +1,6 @@
 import { type ChangeEvent, useLayoutEffect, useRef } from 'react';
 
-import type { TextCanvasNode } from '@/canvas/types/canvas-node.types';
+import type { TextCanvasNode } from '@/types/canvas-node.types.ts';
 
 type TextNodeProps = {
 	node: TextCanvasNode;

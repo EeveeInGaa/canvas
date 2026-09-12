@@ -1,12 +1,12 @@
-import type { CanvasGroup, CanvasNode } from '@/canvas/types/canvas-node.types';
-import type { Point, Rect } from '@/canvas/types/geometry.types';
+import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types.ts';
+import type { Point, Rect } from '@/types/geometry.types.ts';
 import {
 	doRectsIntersect,
 	getBoundingRect,
 	getNodeRect,
 	isPointInsideRect,
-} from '@/canvas/utils/geometry';
-import { SNAP_GRID_SIZE } from '@/canvas/utils/grid.ts';
+} from '@/utils/geometry.ts';
+import { SNAP_GRID_SIZE } from '@/utils/grid.ts';
 
 export const GROUP_FRAME_PADDING = SNAP_GRID_SIZE;
 

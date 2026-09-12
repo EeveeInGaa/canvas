@@ -3,8 +3,8 @@ import {
 	CanvasNodeType,
 	type LinkCanvasNode,
 	type TextCanvasNode,
-} from '../types/canvas-node.types';
-import type { Point } from '../types/geometry.types';
+} from '../types/canvas-node.types.ts';
+import type { Point } from '../types/geometry.types.ts';
 
 export function createNodeId(): string {
 	return crypto.randomUUID();

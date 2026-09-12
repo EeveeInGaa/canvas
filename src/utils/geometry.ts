@@ -1,5 +1,5 @@
-import type { CanvasNode } from '../types/canvas-node.types';
-import type { Point, Rect } from '../types/geometry.types';
+import type { CanvasNode } from '../types/canvas-node.types.ts';
+import type { Point, Rect } from '../types/geometry.types.ts';
 
 export function createRectFromPoints(start: Point, end: Point): Rect {
 	return {

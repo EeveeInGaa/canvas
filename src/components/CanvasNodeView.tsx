@@ -3,12 +3,9 @@ import type { PointerEvent } from 'react';
 import {
 	LinkNode,
 	type LinkNodeChanges,
-} from '@/canvas/components/nodes/LinkNode.tsx';
-import { TextNode } from '@/canvas/components/nodes/TextNode.tsx';
-import {
-	type CanvasNode,
-	CanvasNodeType,
-} from '@/canvas/types/canvas-node.types';
+} from '@/components/nodes/LinkNode.tsx';
+import { TextNode } from '@/components/nodes/TextNode.tsx';
+import { type CanvasNode, CanvasNodeType } from '@/types/canvas-node.types.ts';
 
 type CanvasNodeViewProps = {
 	node: CanvasNode;

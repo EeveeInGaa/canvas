@@ -13,23 +13,23 @@ import type {
 	CanvasDocument,
 	CanvasGroup,
 	CanvasNode,
-} from '@/canvas/types/canvas-node.types';
-import type { Point, Rect } from '@/canvas/types/geometry.types';
-import type { InteractionState } from '@/canvas/types/interaction.types';
-import type { Viewport } from '@/canvas/types/viewport.types';
-import { screenToCanvas } from '@/canvas/utils/coordinates';
+} from '@/types/canvas-node.types.ts';
+import type { Point, Rect } from '@/types/geometry.types.ts';
+import type { InteractionState } from '@/types/interaction.types.ts';
+import type { Viewport } from '@/types/viewport.types.ts';
+import { screenToCanvas } from '@/utils/coordinates.ts';
 import {
 	createRectFromPoints,
 	doRectsIntersect,
 	getBoundingRect,
-} from '@/canvas/utils/geometry';
-import { snapValueToGrid } from '@/canvas/utils/grid';
+} from '@/utils/geometry.ts';
+import { snapValueToGrid } from '@/utils/grid.ts';
 import {
 	doesRectIntersectGroupFrame,
 	findGroupDropTarget,
 	GROUP_FRAME_PADDING,
-} from '@/canvas/utils/group';
-import { clampNodeSize } from '@/canvas/utils/node';
+} from '@/utils/group.ts';
+import { clampNodeSize } from '@/utils/node.ts';
 
 type UseCanvasInteractionsParams = {
 	canvasRef: RefObject<HTMLDivElement | null>;

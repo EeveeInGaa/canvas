@@ -9,8 +9,8 @@ import {
 	useState,
 } from 'react';
 
-import type { Viewport } from '@/canvas/types/viewport.types';
-import { clampScale } from '@/canvas/utils/viewport';
+import type { Viewport } from '@/types/viewport.types.ts';
+import { clampScale } from '@/utils/viewport.ts';
 
 type UseCanvasViewportParams = {
 	canvasRef: RefObject<HTMLDivElement | null>;

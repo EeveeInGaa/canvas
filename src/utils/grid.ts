@@ -1,7 +1,6 @@
-import type { Viewport } from '../types/viewport.types';
+import type { Viewport } from '../types/viewport.types.ts';
 
 export type GridMetrics = {
-	canvasGridSize: number;
 	visibleGridSize: number;
 	offsetX: number;
 	offsetY: number;
@@ -36,7 +35,6 @@ export function getGridMetrics({
 	}
 
 	return {
-		canvasGridSize,
 		visibleGridSize,
 		offsetX: viewport.x % visibleGridSize,
 		offsetY: viewport.y % visibleGridSize,

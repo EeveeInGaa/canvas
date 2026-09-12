@@ -1,4 +1,4 @@
-import type { Rect } from '@/canvas/types/geometry.types';
+import type { Rect } from '@/types/geometry.types.ts';
 
 export const CanvasNodeType = {
 	Text: 'text',

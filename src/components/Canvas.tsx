@@ -1,33 +1,33 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { CanvasContextMenu } from '@/canvas/components/CanvasContextMenu';
-import { CanvasDebugOverlay } from '@/canvas/components/CanvasDebugOverlay';
-import { CanvasGrid } from '@/canvas/components/CanvasGrid';
-import { CanvasGroupFrame } from '@/canvas/components/CanvasGroupFrame';
-import { CanvasNodeView } from '@/canvas/components/CanvasNodeView';
-import { CanvasSelectionBox } from '@/canvas/components/CanvasSelectionBox';
-import { CanvasToolbar } from '@/canvas/components/CanvasToolbar';
-import type { LinkNodeChanges } from '@/canvas/components/nodes/LinkNode.tsx';
-import { useCanvasHistory } from '@/canvas/hooks/useCanvasHistory';
-import { useCanvasInteractions } from '@/canvas/hooks/useCanvasInteractions';
-import { useCanvasKeyboard } from '@/canvas/hooks/useCanvasKeyboard';
-import { useCanvasViewport } from '@/canvas/hooks/useCanvasViewport';
+import { CanvasContextMenu } from '@/components/CanvasContextMenu.tsx';
+import { CanvasDebugOverlay } from '@/components/CanvasDebugOverlay.tsx';
+import { CanvasGrid } from '@/components/CanvasGrid.tsx';
+import { CanvasGroupFrame } from '@/components/CanvasGroupFrame.tsx';
+import { CanvasNodeView } from '@/components/CanvasNodeView.tsx';
+import { CanvasSelectionBox } from '@/components/CanvasSelectionBox.tsx';
+import { CanvasToolbar } from '@/components/CanvasToolbar.tsx';
+import type { LinkNodeChanges } from '@/components/nodes/LinkNode.tsx';
+import { useCanvasHistory } from '@/hooks/useCanvasHistory.ts';
+import { useCanvasInteractions } from '@/hooks/useCanvasInteractions.ts';
+import { useCanvasKeyboard } from '@/hooks/useCanvasKeyboard.ts';
+import { useCanvasViewport } from '@/hooks/useCanvasViewport.ts';
 import {
 	type CanvasDocument,
 	type CanvasGroup,
 	type CanvasNode,
 	CanvasNodeType,
-} from '@/canvas/types/canvas-node.types';
-import type { Point } from '@/canvas/types/geometry.types';
-import { screenToCanvas } from '@/canvas/utils/coordinates';
-import { getGridMetrics, SNAP_GRID_SIZE } from '@/canvas/utils/grid';
-import { createGroupId } from '@/canvas/utils/group';
+} from '@/types/canvas-node.types.ts';
+import type { Point } from '@/types/geometry.types.ts';
+import { screenToCanvas } from '@/utils/coordinates.ts';
+import { getGridMetrics, SNAP_GRID_SIZE } from '@/utils/grid.ts';
+import { createGroupId } from '@/utils/group.ts';
 import {
 	createLinkNode,
 	createTextNode,
 	duplicateNodes,
-} from '@/canvas/utils/node';
+} from '@/utils/node.ts';
 
 function areCanvasNodesEqual(
 	leftNodes: CanvasNode[],
