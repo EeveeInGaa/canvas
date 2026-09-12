@@ -11,7 +11,7 @@ To start the application, run `pnpm dev` and open http://localhost:5173/.
 - coordinate system
 - zoomable canvas
 - panning
-- drawing
+- dragging and resizing
 - text and link type
 - grouping
 - jump to canvas
@@ -19,12 +19,14 @@ To start the application, run `pnpm dev` and open http://localhost:5173/.
 - snap to grid
 - debug mode
 - multiselect
-- keyboard movement
+- keyboard movement & shortcuts
 - undo/redo
+- context menu
+- navigation guidance
 
 ## Todo
 
 - when zoomed out far, content becomes a skeleton
-- export to pdf option
+- export to PDF option
 - option to add images
 - add fixed sizes for canvas and dynamic resize
