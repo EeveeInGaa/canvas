@@ -41,6 +41,7 @@ export function CanvasGroupFrame({
 			ref={(element) => {
 				onElementChange(group.id, element);
 			}}
+			data-group-id={group.id}
 			aria-label="Node group"
 			role="group"
 			style={{

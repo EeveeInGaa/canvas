@@ -1,5 +1,7 @@
+import { ContextMenu } from '@base-ui/react/context-menu';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { CanvasContextMenu } from '@/canvas/components/CanvasContextMenu';
 import { CanvasDebugOverlay } from '@/canvas/components/CanvasDebugOverlay';
 import { CanvasGrid } from '@/canvas/components/CanvasGrid';
 import { CanvasGroupFrame } from '@/canvas/components/CanvasGroupFrame';
@@ -148,6 +150,9 @@ export function Canvas() {
 
 	const [isSnapEnabled, setIsSnapEnabled] = useState(false);
 	const [isDebugEnabled, setIsDebugEnabled] = useState(false);
+	const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
+	const [isSelectionContextMenu, setIsSelectionContextMenu] = useState(false);
+	const contextMenuCanvasPositionRef = useRef<Point | null>(null);
 
 	const { viewport, setViewport, centerViewportOnOrigin } = useCanvasViewport({
 		canvasRef,
@@ -281,23 +286,8 @@ export function Canvas() {
 		});
 	}, [editingNodeId, groups, nodes]);
 
-	const createNodeAtCanvasCenter = useCallback(
-		(type: CanvasNodeType) => {
-			const canvasElement = canvasRef.current;
-
-			if (!canvasElement) {
-				return;
-			}
-
-			const canvasRect = canvasElement.getBoundingClientRect();
-
-			const position = screenToCanvas({
-				screenX: canvasRect.left + canvasRect.width / 2,
-				screenY: canvasRect.top + canvasRect.height / 2,
-				canvasRect,
-				viewport,
-			});
-
+	const createNodeAtPosition = useCallback(
+		(type: CanvasNodeType, position: Point) => {
 			const newNode =
 				type === CanvasNodeType.Text
 					? createTextNode(position)
@@ -309,7 +299,28 @@ export function Canvas() {
 			setSelectedGroupIds([]);
 			setEditingNodeId(newNode.id);
 		},
-		[commitNodes, viewport],
+		[commitNodes],
+	);
+
+	const createNodeAtCanvasCenter = useCallback(
+		(type: CanvasNodeType) => {
+			const canvasElement = canvasRef.current;
+
+			if (!canvasElement) {
+				return;
+			}
+
+			const canvasRect = canvasElement.getBoundingClientRect();
+			const position = screenToCanvas({
+				screenX: canvasRect.left + canvasRect.width / 2,
+				screenY: canvasRect.top + canvasRect.height / 2,
+				canvasRect,
+				viewport,
+			});
+
+			createNodeAtPosition(type, position);
+		},
+		[createNodeAtPosition, viewport],
 	);
 	/*const createNodeAtPointer = useCallback(
 		(event: React.MouseEvent<HTMLDivElement>) => {
@@ -345,6 +356,28 @@ export function Canvas() {
 	const createLinkNodeAtCanvasCenter = useCallback(() => {
 		createNodeAtCanvasCenter(CanvasNodeType.Link);
 	}, [createNodeAtCanvasCenter]);
+
+	const createNodeAtContextMenuPosition = useCallback(
+		(type: CanvasNodeType) => {
+			const position = contextMenuCanvasPositionRef.current;
+
+			if (position) {
+				createNodeAtPosition(type, position);
+				return;
+			}
+
+			createNodeAtCanvasCenter(type);
+		},
+		[createNodeAtCanvasCenter, createNodeAtPosition],
+	);
+
+	const createTextNodeAtContextMenuPosition = useCallback(() => {
+		createNodeAtContextMenuPosition(CanvasNodeType.Text);
+	}, [createNodeAtContextMenuPosition]);
+
+	const createLinkNodeAtContextMenuPosition = useCallback(() => {
+		createNodeAtContextMenuPosition(CanvasNodeType.Link);
+	}, [createNodeAtContextMenuPosition]);
 
 	const updateNodeText = useCallback(
 		(nodeId: string, text: string) => {
@@ -415,6 +448,16 @@ export function Canvas() {
 		setSelectedGroupIds([]);
 		setEditingNodeId(null);
 	}, [commitNodes, effectiveSelectedNodeIdSet, nodes]);
+
+	const deleteSelectedNodesAndCloseContextMenu = useCallback(() => {
+		deleteSelectedNodes();
+		setIsContextMenuOpen(false);
+	}, [deleteSelectedNodes]);
+
+	const duplicateSelectedNodesAndCloseContextMenu = useCallback(() => {
+		duplicateSelectedNodes();
+		setIsContextMenuOpen(false);
+	}, [duplicateSelectedNodes]);
 
 	const moveSelectedNodes = useCallback(
 		(deltaX: number, deltaY: number) => {
@@ -532,8 +575,8 @@ export function Canvas() {
 	const { isSpacePressed } = useCanvasKeyboard({
 		moveDistance: isSnapEnabled ? SNAP_GRID_SIZE : 5,
 		shiftMoveDistance: isSnapEnabled ? SNAP_GRID_SIZE * 2 : 20,
-		onDelete: deleteSelectedNodes,
-		onDuplicate: duplicateSelectedNodes,
+		onDelete: deleteSelectedNodesAndCloseContextMenu,
+		onDuplicate: duplicateSelectedNodesAndCloseContextMenu,
 		onMoveSelection: moveSelectedNodes,
 		onUndo: handleUndo,
 		onRedo: handleRedo,
@@ -574,115 +617,192 @@ export function Canvas() {
 		setCursorCanvasPosition,
 	});
 
-	return (
-		<div
-			aria-label="Canvas workspace"
-			role="application"
-			ref={canvasRef}
-			onPointerDown={handleCanvasPointerDown}
-			onPointerMove={handleCanvasPointerMove}
-			onPointerUp={handleCanvasPointerUp}
-			onPointerCancel={handleCanvasPointerCancel}
-			onPointerLeave={() => {
-				setCursorCanvasPosition(null);
-			}}
-			style={{
-				position: 'relative',
-				width: '800px',
-				height: '600px',
-				overflow: 'hidden',
-				border: '1px solid rgba(255,255,255,0.12)',
-				borderRadius: 16,
-				background: '#111318',
-				cursor: isSpacePressed
-					? interaction.type === 'panning'
-						? 'grabbing'
-						: 'grab'
-					: 'crosshair',
-				touchAction: 'none',
-			}}
-		>
-			<CanvasGrid
-				visibleGridSize={gridMetrics.visibleGridSize}
-				offsetX={gridMetrics.offsetX}
-				offsetY={gridMetrics.offsetY}
-			/>
+	const handleContextMenu = useCallback(
+		(event: React.MouseEvent<HTMLDivElement>) => {
+			const eventTarget = event.target;
+			const targetElement =
+				eventTarget instanceof Element ? eventTarget : event.currentTarget;
+			const nodeElement = targetElement.closest<HTMLElement>('[data-node-id]');
+			const groupElement =
+				targetElement.closest<HTMLElement>('[data-group-id]');
 
-			<div
+			if (nodeElement?.dataset.nodeId) {
+				const nodeId = nodeElement.dataset.nodeId;
+
+				if (!effectiveSelectedNodeIdSet.has(nodeId)) {
+					setSelectedNodeIds([nodeId]);
+					setSelectedGroupIds([]);
+				}
+
+				setEditingNodeId(null);
+				setIsSelectionContextMenu(true);
+				return;
+			}
+
+			if (groupElement?.dataset.groupId) {
+				const groupId = groupElement.dataset.groupId;
+
+				if (!selectedGroupIdSet.has(groupId)) {
+					setSelectedNodeIds([]);
+					setSelectedGroupIds([groupId]);
+				}
+
+				setEditingNodeId(null);
+				setIsSelectionContextMenu(true);
+				return;
+			}
+
+			const canvasElement = canvasRef.current;
+
+			if (canvasElement) {
+				contextMenuCanvasPositionRef.current = screenToCanvas({
+					screenX: event.clientX,
+					screenY: event.clientY,
+					canvasRect: canvasElement.getBoundingClientRect(),
+					viewport,
+				});
+			}
+
+			setEditingNodeId(null);
+			setIsSelectionContextMenu(false);
+		},
+		[effectiveSelectedNodeIdSet, selectedGroupIdSet, viewport],
+	);
+
+	return (
+		<ContextMenu.Root
+			onOpenChange={setIsContextMenuOpen}
+			open={isContextMenuOpen}
+		>
+			<ContextMenu.Trigger
+				aria-label="Canvas workspace"
+				role="application"
+				ref={canvasRef}
+				onPointerDown={handleCanvasPointerDown}
+				onPointerMove={handleCanvasPointerMove}
+				onPointerUp={handleCanvasPointerUp}
+				onPointerCancel={handleCanvasPointerCancel}
+				onContextMenu={handleContextMenu}
+				onPointerLeave={() => {
+					setCursorCanvasPosition(null);
+				}}
 				style={{
-					position: 'absolute',
-					left: 0,
-					top: 0,
-					transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
-					transformOrigin: '0 0',
+					position: 'relative',
+					width: '800px',
+					height: '600px',
+					overflow: 'hidden',
+					border: '1px solid rgba(255,255,255,0.12)',
+					borderRadius: 16,
+					background: '#111318',
+					cursor: isSpacePressed
+						? interaction.type === 'panning'
+							? 'grabbing'
+							: 'grab'
+						: 'crosshair',
+					touchAction: 'none',
 				}}
 			>
-				{groups.map((group) => (
-					<CanvasGroupFrame
-						key={group.id}
-						group={group}
-						nodes={nodes}
-						isSelected={selectedGroupIdSet.has(group.id)}
-						isDragging={
-							interaction.type === 'dragging' &&
-							selectedGroupIdSet.has(group.id)
-						}
-						isDropTarget={dropTargetGroupId === group.id}
-						onPointerDown={handleGroupPointerDown}
-						onElementChange={registerGroupElement}
-					/>
-				))}
-				{[...nodes]
-					.sort((a, b) => {
-						const aSelected = selectedNodeIdSet.has(a.id) ? 1 : 0;
-						const bSelected = selectedNodeIdSet.has(b.id) ? 1 : 0;
-						return aSelected - bSelected;
-					})
-					.map((node) => (
-						<CanvasNodeView
-							key={node.id}
-							node={node}
-							isSelected={
-								selectedNodeIdSet.has(node.id) &&
-								!selectedGroupNodeIdSet.has(node.id)
-							}
-							isEditing={editingNodeId === node.id}
+				<CanvasGrid
+					visibleGridSize={gridMetrics.visibleGridSize}
+					offsetX={gridMetrics.offsetX}
+					offsetY={gridMetrics.offsetY}
+				/>
+
+				<div
+					style={{
+						position: 'absolute',
+						left: 0,
+						top: 0,
+						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
+						transformOrigin: '0 0',
+					}}
+				>
+					{groups.map((group) => (
+						<CanvasGroupFrame
+							key={group.id}
+							group={group}
+							nodes={nodes}
+							isSelected={selectedGroupIdSet.has(group.id)}
 							isDragging={
 								interaction.type === 'dragging' &&
-								interaction.nodeIds.includes(node.id)
+								selectedGroupIdSet.has(group.id)
 							}
-							onPointerDown={handleNodePointerDown}
-							onResizePointerDown={handleResizePointerDown}
-							onStartEditing={startNodeEditing}
-							onStopEditing={stopNodeEditing}
-							onTextChange={updateNodeText}
-							onLinkChange={updateLinkNode}
-							onElementChange={registerNodeElement}
+							isDropTarget={dropTargetGroupId === group.id}
+							onPointerDown={handleGroupPointerDown}
+							onElementChange={registerGroupElement}
 						/>
 					))}
+					{[...nodes]
+						.sort((a, b) => {
+							const aSelected = selectedNodeIdSet.has(a.id) ? 1 : 0;
+							const bSelected = selectedNodeIdSet.has(b.id) ? 1 : 0;
+							return aSelected - bSelected;
+						})
+						.map((node) => (
+							<CanvasNodeView
+								key={node.id}
+								node={node}
+								isSelected={
+									selectedNodeIdSet.has(node.id) &&
+									!selectedGroupNodeIdSet.has(node.id)
+								}
+								isEditing={editingNodeId === node.id}
+								isDragging={
+									interaction.type === 'dragging' &&
+									interaction.nodeIds.includes(node.id)
+								}
+								onPointerDown={handleNodePointerDown}
+								onResizePointerDown={handleResizePointerDown}
+								onStartEditing={startNodeEditing}
+								onStopEditing={stopNodeEditing}
+								onTextChange={updateNodeText}
+								onLinkChange={updateLinkNode}
+								onElementChange={registerNodeElement}
+							/>
+						))}
 
-				<CanvasSelectionBox rect={selectionRect} />
-			</div>
+					<CanvasSelectionBox rect={selectionRect} />
+				</div>
 
-			<CanvasToolbar
-				isDebugEnabled={isDebugEnabled}
+				<CanvasToolbar
+					isDebugEnabled={isDebugEnabled}
+					isSnapEnabled={isSnapEnabled}
+					canRedo={canRedo}
+					canUndo={canUndo}
+					onCenterViewport={centerViewportOnOrigin}
+					onRedo={handleRedo}
+					onToggleDebug={() => {
+						setIsDebugEnabled((currentValue) => !currentValue);
+					}}
+					onToggleSnap={() => {
+						setIsSnapEnabled((currentValue) => !currentValue);
+					}}
+					onUndo={handleUndo}
+					onCreateTextNode={createTextNodeAtCanvasCenter}
+					onCreateLinkNode={createLinkNodeAtCanvasCenter}
+				/>
+
+				{isDebugEnabled && (
+					<CanvasDebugOverlay position={cursorCanvasPosition} />
+				)}
+			</ContextMenu.Trigger>
+			<CanvasContextMenu
+				canGroup={effectiveSelectedNodeIds.length > 1}
+				canUngroup={selectedGroupIds.length > 0}
+				isSelectionMenu={isSelectionContextMenu}
 				isSnapEnabled={isSnapEnabled}
-				canRedo={canRedo}
-				canUndo={canUndo}
+				selectionCount={effectiveSelectedNodeIds.length}
 				onCenterViewport={centerViewportOnOrigin}
-				onRedo={handleRedo}
-				onToggleDebug={() => {
-					setIsDebugEnabled((currentValue) => !currentValue);
-				}}
+				onCreateLinkNode={createLinkNodeAtContextMenuPosition}
+				onCreateTextNode={createTextNodeAtContextMenuPosition}
+				onDelete={deleteSelectedNodesAndCloseContextMenu}
+				onDuplicate={duplicateSelectedNodesAndCloseContextMenu}
+				onGroup={groupSelectedNodes}
 				onToggleSnap={() => {
 					setIsSnapEnabled((currentValue) => !currentValue);
 				}}
-				onUndo={handleUndo}
-				onCreateTextNode={createTextNodeAtCanvasCenter}
-				onCreateLinkNode={createLinkNodeAtCanvasCenter}
+				onUngroup={ungroupSelectedGroups}
 			/>
-
-			{isDebugEnabled && <CanvasDebugOverlay position={cursorCanvasPosition} />}
-		</div>
+		</ContextMenu.Root>
 	);
 }

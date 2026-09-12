@@ -26,6 +26,7 @@ const NAVIGATION_SHORTCUTS: Shortcut[] = [
 	{ action: 'Pan canvas', keys: ['Scroll'] },
 	{ action: 'Zoom', keys: ['Ctrl / ⌘', 'Scroll'] },
 	{ action: 'Zoom', keys: ['Pinch'] },
+	{ action: 'Actions', keys: ['Right click'] },
 ];
 
 const SELECTION_SHORTCUTS: Shortcut[] = [
