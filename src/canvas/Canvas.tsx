@@ -150,6 +150,7 @@ export function Canvas() {
 
 	const [isSnapEnabled, setIsSnapEnabled] = useState(false);
 	const [isDebugEnabled, setIsDebugEnabled] = useState(false);
+	const [isInfoOpen, setIsInfoOpen] = useState(false);
 	const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
 	const [isSelectionContextMenu, setIsSelectionContextMenu] = useState(false);
 	const contextMenuCanvasPositionRef = useRef<Point | null>(null);
@@ -572,15 +573,33 @@ export function Canvas() {
 		redo();
 	}, [commitPendingTextEdit, redo]);
 
+	const toggleDebug = useCallback(() => {
+		setIsDebugEnabled((currentValue) => !currentValue);
+	}, []);
+
+	const toggleInfo = useCallback(() => {
+		setIsInfoOpen((currentValue) => !currentValue);
+	}, []);
+
+	const toggleSnap = useCallback(() => {
+		setIsSnapEnabled((currentValue) => !currentValue);
+	}, []);
+
 	const { isSpacePressed } = useCanvasKeyboard({
 		moveDistance: isSnapEnabled ? SNAP_GRID_SIZE : 5,
 		shiftMoveDistance: isSnapEnabled ? SNAP_GRID_SIZE * 2 : 20,
+		onCenterViewport: centerViewportOnOrigin,
+		onCreateLinkNode: createLinkNodeAtCanvasCenter,
+		onCreateTextNode: createTextNodeAtCanvasCenter,
 		onDelete: deleteSelectedNodesAndCloseContextMenu,
 		onDuplicate: duplicateSelectedNodesAndCloseContextMenu,
 		onMoveSelection: moveSelectedNodes,
 		onUndo: handleUndo,
 		onRedo: handleRedo,
 		onGroup: groupSelectedNodes,
+		onToggleDebug: toggleDebug,
+		onToggleInfo: toggleInfo,
+		onToggleSnap: toggleSnap,
 		onUngroup: ungroupSelectedGroups,
 	});
 
@@ -766,17 +785,15 @@ export function Canvas() {
 
 				<CanvasToolbar
 					isDebugEnabled={isDebugEnabled}
+					isInfoOpen={isInfoOpen}
 					isSnapEnabled={isSnapEnabled}
 					canRedo={canRedo}
 					canUndo={canUndo}
 					onCenterViewport={centerViewportOnOrigin}
+					onInfoOpenChange={setIsInfoOpen}
 					onRedo={handleRedo}
-					onToggleDebug={() => {
-						setIsDebugEnabled((currentValue) => !currentValue);
-					}}
-					onToggleSnap={() => {
-						setIsSnapEnabled((currentValue) => !currentValue);
-					}}
+					onToggleDebug={toggleDebug}
+					onToggleSnap={toggleSnap}
 					onUndo={handleUndo}
 					onCreateTextNode={createTextNodeAtCanvasCenter}
 					onCreateLinkNode={createLinkNodeAtCanvasCenter}
@@ -798,9 +815,7 @@ export function Canvas() {
 				onDelete={deleteSelectedNodesAndCloseContextMenu}
 				onDuplicate={duplicateSelectedNodesAndCloseContextMenu}
 				onGroup={groupSelectedNodes}
-				onToggleSnap={() => {
-					setIsSnapEnabled((currentValue) => !currentValue);
-				}}
+				onToggleSnap={toggleSnap}
 				onUngroup={ungroupSelectedGroups}
 			/>
 		</ContextMenu.Root>

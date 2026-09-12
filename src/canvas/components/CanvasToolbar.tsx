@@ -1,3 +1,4 @@
+import { Accordion } from '@base-ui/react/accordion';
 import { Popover } from '@base-ui/react/popover';
 
 import styles from './CanvasToolbar.module.css';
@@ -6,10 +7,12 @@ type CanvasToolbarProps = {
 	canRedo: boolean;
 	canUndo: boolean;
 	isDebugEnabled: boolean;
+	isInfoOpen: boolean;
 	isSnapEnabled: boolean;
 	onCenterViewport: () => void;
 	onRedo: () => void;
 	onToggleDebug: () => void;
+	onInfoOpenChange: (isOpen: boolean) => void;
 	onToggleSnap: () => void;
 	onUndo: () => void;
 	onCreateTextNode: () => void;
@@ -27,6 +30,15 @@ const NAVIGATION_SHORTCUTS: Shortcut[] = [
 	{ action: 'Zoom', keys: ['Ctrl / ⌘', 'Scroll'] },
 	{ action: 'Zoom', keys: ['Pinch'] },
 	{ action: 'Actions', keys: ['Right click'] },
+];
+
+const CANVAS_SHORTCUTS: Shortcut[] = [
+	{ action: 'Add text node', keys: ['T'] },
+	{ action: 'Add link node', keys: ['L'] },
+	{ action: 'Toggle snap', keys: ['S'] },
+	{ action: 'Center canvas', keys: ['C'] },
+	{ action: 'Toggle debug', keys: ['D'] },
+	{ action: 'Toggle this menu', keys: ['I'] },
 ];
 
 const SELECTION_SHORTCUTS: Shortcut[] = [
@@ -67,12 +79,51 @@ function ShortcutList({ shortcuts }: { shortcuts: Shortcut[] }) {
 	);
 }
 
-function CanvasControlsPopover() {
+type ShortcutSectionProps = {
+	shortcuts: Shortcut[];
+	title: string;
+	value: string;
+};
+
+function ShortcutSection({ shortcuts, title, value }: ShortcutSectionProps) {
 	return (
-		<Popover.Root>
+		<Accordion.Item className={styles.accordionItem} value={value}>
+			<Accordion.Header className={styles.accordionHeader}>
+				<Accordion.Trigger className={styles.accordionTrigger}>
+					<span>{title}</span>
+					<svg
+						aria-hidden="true"
+						className={styles.accordionIcon}
+						viewBox="0 0 16 16"
+					>
+						<path d="m4 6 4 4 4-4" />
+					</svg>
+				</Accordion.Trigger>
+			</Accordion.Header>
+			<Accordion.Panel className={styles.accordionPanel}>
+				<div className={styles.accordionContent}>
+					<ShortcutList shortcuts={shortcuts} />
+				</div>
+			</Accordion.Panel>
+		</Accordion.Item>
+	);
+}
+
+type CanvasControlsPopoverProps = {
+	isOpen: boolean;
+	onOpenChange: (isOpen: boolean) => void;
+};
+
+function CanvasControlsPopover({
+	isOpen,
+	onOpenChange,
+}: CanvasControlsPopoverProps) {
+	return (
+		<Popover.Root open={isOpen} onOpenChange={onOpenChange}>
 			<Popover.Trigger
 				aria-label="Show canvas controls"
 				className={styles.infoButton}
+				data-canvas-shortcuts-trigger=""
 				onPointerDown={(event) => event.stopPropagation()}
 			>
 				<span aria-hidden="true">i</span>
@@ -88,6 +139,7 @@ function CanvasControlsPopover() {
 					<Popover.Popup
 						className={styles.popup}
 						data-canvas-shortcuts-dialog=""
+						onPointerDown={(event) => event.stopPropagation()}
 					>
 						<Popover.Title className={styles.title}>
 							Canvas controls
@@ -96,17 +148,23 @@ function CanvasControlsPopover() {
 							Keyboard and pointer shortcuts
 						</Popover.Description>
 
-						<section className={styles.section}>
-							<h3 className={styles.sectionTitle}>Navigate</h3>
-							<ShortcutList shortcuts={NAVIGATION_SHORTCUTS} />
-						</section>
-
-						<div className={styles.divider} />
-
-						<section className={styles.section}>
-							<h3 className={styles.sectionTitle}>Edit selection</h3>
-							<ShortcutList shortcuts={SELECTION_SHORTCUTS} />
-						</section>
+						<Accordion.Root className={styles.accordion} defaultValue={[]}>
+							<ShortcutSection
+								shortcuts={CANVAS_SHORTCUTS}
+								title="Canvas"
+								value="canvas"
+							/>
+							<ShortcutSection
+								shortcuts={NAVIGATION_SHORTCUTS}
+								title="Navigate"
+								value="navigate"
+							/>
+							<ShortcutSection
+								shortcuts={SELECTION_SHORTCUTS}
+								title="Edit selection"
+								value="selection"
+							/>
+						</Accordion.Root>
 					</Popover.Popup>
 				</Popover.Positioner>
 			</Popover.Portal>
@@ -118,10 +176,12 @@ export function CanvasToolbar({
 	canRedo,
 	canUndo,
 	isDebugEnabled,
+	isInfoOpen,
 	isSnapEnabled,
 	onCenterViewport,
 	onRedo,
 	onToggleDebug,
+	onInfoOpenChange,
 	onToggleSnap,
 	onUndo,
 	onCreateTextNode,
@@ -197,6 +257,7 @@ export function CanvasToolbar({
 					Redo
 				</button>
 				<button
+					aria-pressed={isDebugEnabled}
 					type="button"
 					onPointerDown={(event) => event.stopPropagation()}
 					onClick={onToggleDebug}
@@ -215,6 +276,7 @@ export function CanvasToolbar({
 				</button>
 
 				<button
+					aria-pressed={isSnapEnabled}
 					type="button"
 					onPointerDown={(event) => event.stopPropagation()}
 					onClick={onToggleSnap}
@@ -231,7 +293,10 @@ export function CanvasToolbar({
 				>
 					Snap: {isSnapEnabled ? 'On' : 'Off'}
 				</button>
-				<CanvasControlsPopover />
+				<CanvasControlsPopover
+					isOpen={isInfoOpen}
+					onOpenChange={onInfoOpenChange}
+				/>
 			</div>
 			<div
 				style={{

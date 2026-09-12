@@ -10,8 +10,14 @@ const ARROW_DIRECTIONS: Partial<Record<string, readonly [number, number]>> = {
 type UseCanvasKeyboardParams = {
 	moveDistance: number;
 	shiftMoveDistance: number;
+	onCenterViewport: () => void;
+	onCreateLinkNode: () => void;
+	onCreateTextNode: () => void;
 	onDelete: () => void;
 	onDuplicate: () => void;
+	onToggleDebug: () => void;
+	onToggleInfo: () => void;
+	onToggleSnap: () => void;
 	onMoveSelection?: (deltaX: number, deltaY: number) => boolean;
 	onGroup?: () => void;
 	onUngroup?: () => void;
@@ -26,8 +32,14 @@ type UseCanvasKeyboardResult = {
 export function useCanvasKeyboard({
 	moveDistance,
 	shiftMoveDistance,
+	onCenterViewport,
+	onCreateLinkNode,
+	onCreateTextNode,
 	onDelete,
 	onDuplicate,
+	onToggleDebug,
+	onToggleInfo,
+	onToggleSnap,
 	onMoveSelection,
 	onGroup,
 	onUngroup,
@@ -39,6 +51,24 @@ export function useCanvasKeyboard({
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			const target = event.target;
+			const key = event.key.toLowerCase();
+			const isInShortcutsUi =
+				target instanceof Element &&
+				target.closest(
+					'[data-canvas-shortcuts-dialog], [data-canvas-shortcuts-trigger]',
+				) !== null;
+			const hasCommandModifier = event.metaKey || event.ctrlKey || event.altKey;
+
+			if (
+				isInShortcutsUi &&
+				!hasCommandModifier &&
+				!event.repeat &&
+				key === 'i'
+			) {
+				event.preventDefault();
+				onToggleInfo();
+				return;
+			}
 
 			const isInteractiveElement =
 				target instanceof HTMLElement &&
@@ -57,7 +87,7 @@ export function useCanvasKeyboard({
 				return;
 			}
 
-			if (!event.metaKey && !event.ctrlKey && !event.altKey) {
+			if (!hasCommandModifier) {
 				const distance = event.shiftKey ? shiftMoveDistance : moveDistance;
 				const direction = ARROW_DIRECTIONS[event.key];
 
@@ -67,6 +97,42 @@ export function useCanvasKeyboard({
 				) {
 					event.preventDefault();
 					return;
+				}
+
+				if (event.repeat) {
+					return;
+				}
+
+				switch (key) {
+					case 't':
+						event.preventDefault();
+						onCreateTextNode();
+						return;
+
+					case 'l':
+						event.preventDefault();
+						onCreateLinkNode();
+						return;
+
+					case 's':
+						event.preventDefault();
+						onToggleSnap();
+						return;
+
+					case 'c':
+						event.preventDefault();
+						onCenterViewport();
+						return;
+
+					case 'd':
+						event.preventDefault();
+						onToggleDebug();
+						return;
+
+					case 'i':
+						event.preventDefault();
+						onToggleInfo();
+						return;
 				}
 			}
 
@@ -129,11 +195,17 @@ export function useCanvasKeyboard({
 		};
 	}, [
 		moveDistance,
+		onCenterViewport,
+		onCreateLinkNode,
+		onCreateTextNode,
 		onDelete,
 		onDuplicate,
 		onGroup,
 		onMoveSelection,
 		onRedo,
+		onToggleDebug,
+		onToggleInfo,
+		onToggleSnap,
 		onUndo,
 		onUngroup,
 		shiftMoveDistance,
