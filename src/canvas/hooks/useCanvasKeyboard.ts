@@ -40,12 +40,14 @@ export function useCanvasKeyboard({
 		const handleKeyDown = (event: KeyboardEvent) => {
 			const target = event.target;
 
-			const isTextInput =
-				target instanceof HTMLInputElement ||
-				target instanceof HTMLTextAreaElement ||
-				(target instanceof HTMLElement && target.isContentEditable);
+			const isInteractiveElement =
+				target instanceof HTMLElement &&
+				(target.isContentEditable ||
+					target.closest(
+						'button, input, textarea, select, a[href], [data-canvas-shortcuts-dialog]',
+					));
 
-			if (isTextInput) {
+			if (isInteractiveElement) {
 				return;
 			}
 

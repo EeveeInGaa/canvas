@@ -1,3 +1,7 @@
+import { Popover } from '@base-ui/react/popover';
+
+import styles from './CanvasToolbar.module.css';
+
 type CanvasToolbarProps = {
 	canRedo: boolean;
 	canUndo: boolean;
@@ -11,6 +15,103 @@ type CanvasToolbarProps = {
 	onCreateTextNode: () => void;
 	onCreateLinkNode: () => void;
 };
+
+type Shortcut = {
+	action: string;
+	keys: string[];
+};
+
+const NAVIGATION_SHORTCUTS: Shortcut[] = [
+	{ action: 'Pan canvas', keys: ['Space', 'Drag'] },
+	{ action: 'Pan canvas', keys: ['Scroll'] },
+	{ action: 'Zoom', keys: ['Ctrl / ⌘', 'Scroll'] },
+	{ action: 'Zoom', keys: ['Pinch'] },
+];
+
+const SELECTION_SHORTCUTS: Shortcut[] = [
+	{ action: 'Move selection', keys: ['Arrow keys'] },
+	{ action: 'Move farther', keys: ['Shift', 'Arrow keys'] },
+	{ action: 'Duplicate', keys: ['Ctrl / ⌘', 'D'] },
+	{ action: 'Delete', keys: ['Backspace / Del'] },
+	{ action: 'Group', keys: ['Ctrl / ⌘', 'G'] },
+	{ action: 'Ungroup', keys: ['Ctrl / ⌘', 'Shift', 'G'] },
+	{ action: 'Undo', keys: ['Ctrl / ⌘', 'Z'] },
+	{ action: 'Redo', keys: ['Ctrl / ⌘', 'Shift', 'Z'] },
+];
+
+function ShortcutList({ shortcuts }: { shortcuts: Shortcut[] }) {
+	return (
+		<dl className={styles.shortcutList}>
+			{shortcuts.map((shortcut) => (
+				<div
+					className={styles.shortcutRow}
+					key={`${shortcut.action}-${shortcut.keys.join('-')}`}
+				>
+					<dt>{shortcut.action}</dt>
+					<dd className={styles.keys}>
+						{shortcut.keys.map((key, index) => (
+							<span key={key} className={styles.keyGroup}>
+								{index > 0 && (
+									<span aria-hidden="true" className={styles.keySeparator}>
+										+
+									</span>
+								)}
+								<kbd className={styles.key}>{key}</kbd>
+							</span>
+						))}
+					</dd>
+				</div>
+			))}
+		</dl>
+	);
+}
+
+function CanvasControlsPopover() {
+	return (
+		<Popover.Root>
+			<Popover.Trigger
+				aria-label="Show canvas controls"
+				className={styles.infoButton}
+				onPointerDown={(event) => event.stopPropagation()}
+			>
+				<span aria-hidden="true">i</span>
+			</Popover.Trigger>
+			<Popover.Portal>
+				<Popover.Positioner
+					align="end"
+					className={styles.positioner}
+					collisionPadding={12}
+					side="bottom"
+					sideOffset={8}
+				>
+					<Popover.Popup
+						className={styles.popup}
+						data-canvas-shortcuts-dialog=""
+					>
+						<Popover.Title className={styles.title}>
+							Canvas controls
+						</Popover.Title>
+						<Popover.Description className={styles.description}>
+							Keyboard and pointer shortcuts
+						</Popover.Description>
+
+						<section className={styles.section}>
+							<h3 className={styles.sectionTitle}>Navigate</h3>
+							<ShortcutList shortcuts={NAVIGATION_SHORTCUTS} />
+						</section>
+
+						<div className={styles.divider} />
+
+						<section className={styles.section}>
+							<h3 className={styles.sectionTitle}>Edit selection</h3>
+							<ShortcutList shortcuts={SELECTION_SHORTCUTS} />
+						</section>
+					</Popover.Popup>
+				</Popover.Positioner>
+			</Popover.Portal>
+		</Popover.Root>
+	);
+}
 
 export function CanvasToolbar({
 	canRedo,
@@ -129,6 +230,7 @@ export function CanvasToolbar({
 				>
 					Snap: {isSnapEnabled ? 'On' : 'Off'}
 				</button>
+				<CanvasControlsPopover />
 			</div>
 			<div
 				style={{
