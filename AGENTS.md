@@ -21,6 +21,7 @@ Run `pnpm check` and `pnpm build` after source changes. The project does not hav
 ## Code structure
 
 - Keep UI components in `src/components`, stateful behavior in `src/hooks`, shared types in `src/types`, and pure calculations or state transformations in `src/utils`.
+- Keep multi-file UI areas in a named subdirectory, as with `src/components/toolbar` and `src/components/context-menu`.
 - Keep the public canvas interaction facade in `src/hooks/useCanvasInteractions.ts`; lifecycle-specific pointer hooks belong in `src/hooks/interactions`.
 - Keep React components focused on rendering and event wiring. Move reusable state transitions and geometry calculations into hooks or pure domain modules.
 - Split files by responsibility when a component or hook coordinates unrelated behaviors. Avoid creating one-file abstractions for trivial values.

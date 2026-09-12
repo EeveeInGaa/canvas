@@ -1,13 +1,13 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
-import { CanvasContextMenu } from '@/components/CanvasContextMenu';
 import { CanvasDebugOverlay } from '@/components/CanvasDebugOverlay';
 import { CanvasGrid } from '@/components/CanvasGrid';
 import { CanvasGroupFrame } from '@/components/CanvasGroupFrame';
 import { CanvasNodeView } from '@/components/CanvasNodeView';
 import { CanvasSelectionBox } from '@/components/CanvasSelectionBox';
-import { CanvasToolbar } from '@/components/CanvasToolbar';
+import { CanvasContextMenu } from '@/components/context-menu/CanvasContextMenu';
+import { CanvasToolbar } from '@/components/toolbar/CanvasToolbar';
 import { useCanvasCommands } from '@/hooks/useCanvasCommands';
 import { useCanvasContextMenu } from '@/hooks/useCanvasContextMenu';
 import { useCanvasDocument } from '@/hooks/useCanvasDocument';
