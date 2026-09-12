@@ -12,15 +12,12 @@ export function CanvasSelectionBox({ rect }: CanvasSelectionBoxProps) {
 	return (
 		<div
 			aria-hidden="true"
+			className="pointer-events-none absolute rounded-lg border border-accent/90 bg-accent/12"
 			style={{
-				position: 'absolute',
 				left: rect.x,
 				top: rect.y,
 				width: rect.width,
 				height: rect.height,
-				border: '1px solid rgba(124,156,255,0.9)',
-				background: 'rgba(124,156,255,0.12)',
-				pointerEvents: 'none',
 			}}
 		/>
 	);

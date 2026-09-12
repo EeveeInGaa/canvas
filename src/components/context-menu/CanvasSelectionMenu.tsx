@@ -7,7 +7,11 @@ import {
 	GroupIcon,
 	UngroupIcon,
 } from '@/components/context-menu/CanvasMenuIcons';
-import styles from './CanvasContextMenu.module.css';
+import {
+	DESTRUCTIVE_MENU_ITEM_CLASS_NAME,
+	MENU_ITEM_CLASS_NAME,
+	MENU_LABEL_CLASS_NAME,
+} from '@/components/context-menu/canvasMenuClassNames';
 
 type CanvasSelectionMenuProps = {
 	canGroup: boolean;
@@ -20,7 +24,11 @@ type CanvasSelectionMenuProps = {
 };
 
 function Shortcut({ children }: { children: ReactNode }) {
-	return <span className={styles.shortcut}>{children}</span>;
+	return (
+		<span className="whitespace-nowrap text-[10px] font-medium tracking-[0.01em] text-white/[0.38]">
+			{children}
+		</span>
+	);
 }
 
 export function CanvasSelectionMenu({
@@ -34,36 +42,36 @@ export function CanvasSelectionMenu({
 }: CanvasSelectionMenuProps) {
 	return (
 		<>
-			<ContextMenu.Item className={styles.item} onClick={onDuplicate}>
+			<ContextMenu.Item className={MENU_ITEM_CLASS_NAME} onClick={onDuplicate}>
 				<DuplicateIcon />
-				<span className={styles.label}>Duplicate</span>
+				<span className={MENU_LABEL_CLASS_NAME}>Duplicate</span>
 				<Shortcut>Ctrl/⌘ D</Shortcut>
 			</ContextMenu.Item>
 
 			{canGroup && (
-				<ContextMenu.Item className={styles.item} onClick={onGroup}>
+				<ContextMenu.Item className={MENU_ITEM_CLASS_NAME} onClick={onGroup}>
 					<GroupIcon />
-					<span className={styles.label}>Group selection</span>
+					<span className={MENU_LABEL_CLASS_NAME}>Group selection</span>
 					<Shortcut>Ctrl/⌘ G</Shortcut>
 				</ContextMenu.Item>
 			)}
 
 			{canUngroup && (
-				<ContextMenu.Item className={styles.item} onClick={onUngroup}>
+				<ContextMenu.Item className={MENU_ITEM_CLASS_NAME} onClick={onUngroup}>
 					<UngroupIcon />
-					<span className={styles.label}>Ungroup</span>
+					<span className={MENU_LABEL_CLASS_NAME}>Ungroup</span>
 					<Shortcut>⇧ Ctrl/⌘ G</Shortcut>
 				</ContextMenu.Item>
 			)}
 
-			<ContextMenu.Separator className={styles.separator} />
+			<ContextMenu.Separator className="mx-1 my-[5px] h-px bg-white/10" />
 
 			<ContextMenu.Item
-				className={`${styles.item} ${styles.destructiveItem}`}
+				className={DESTRUCTIVE_MENU_ITEM_CLASS_NAME}
 				onClick={onDelete}
 			>
 				<DeleteIcon />
-				<span className={styles.label}>
+				<span className={MENU_LABEL_CLASS_NAME}>
 					{selectionCount > 1 ? `Delete ${selectionCount} items` : 'Delete'}
 				</span>
 				<Shortcut>⌫</Shortcut>

@@ -2,6 +2,10 @@ import { ContextMenu } from '@base-ui/react/context-menu';
 
 import { CanvasSelectionMenu } from '@/components/context-menu/CanvasSelectionMenu';
 import { CanvasWorkspaceMenu } from '@/components/context-menu/CanvasWorkspaceMenu';
+import {
+	MENU_POPUP_CLASS_NAME,
+	MENU_POSITIONER_CLASS_NAME,
+} from '@/components/context-menu/canvasMenuClassNames';
 import styles from './CanvasContextMenu.module.css';
 
 type CanvasContextMenuProps = {
@@ -38,10 +42,12 @@ export function CanvasContextMenu({
 	return (
 		<ContextMenu.Portal>
 			<ContextMenu.Positioner
-				className={styles.positioner}
+				className={MENU_POSITIONER_CLASS_NAME}
 				collisionPadding={8}
 			>
-				<ContextMenu.Popup className={styles.popup}>
+				<ContextMenu.Popup
+					className={`${styles.popupMotion} ${MENU_POPUP_CLASS_NAME}`}
+				>
 					{isSelectionMenu ? (
 						<CanvasSelectionMenu
 							canGroup={canGroup}

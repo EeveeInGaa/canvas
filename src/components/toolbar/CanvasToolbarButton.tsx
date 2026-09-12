@@ -13,27 +13,20 @@ export function CanvasToolbarButton({
 	isPressed,
 	onClick,
 }: CanvasToolbarButtonProps) {
+	const stateClassName = disabled
+		? 'cursor-not-allowed bg-panel text-white/[0.32]'
+		: isPressed
+			? 'cursor-pointer bg-accent text-accent-contrast'
+			: 'cursor-pointer bg-panel text-white/[0.82]';
+
 	return (
 		<button
 			aria-pressed={isPressed}
+			className={`rounded-full border border-white/[0.14] px-2.5 py-1.5 text-xs font-semibold ${stateClassName}`}
 			type="button"
 			disabled={disabled}
 			onPointerDown={(event) => event.stopPropagation()}
 			onClick={onClick}
-			style={{
-				border: '1px solid rgba(255,255,255,0.14)',
-				borderRadius: 999,
-				background: isPressed ? '#7c9cff' : '#1b1d24',
-				color: disabled
-					? 'rgba(255,255,255,0.32)'
-					: isPressed
-						? '#101217'
-						: 'rgba(255,255,255,0.82)',
-				padding: '6px 10px',
-				fontSize: 12,
-				fontWeight: 600,
-				cursor: disabled ? 'not-allowed' : 'pointer',
-			}}
 		>
 			{children}
 		</button>

@@ -1,10 +1,17 @@
 import type { ReactNode } from 'react';
 
-import styles from './CanvasContextMenu.module.css';
-
-function MenuIcon({ children }: { children: ReactNode }) {
+function MenuIcon({
+	children,
+	isDestructive = false,
+}: {
+	children: ReactNode;
+	isDestructive?: boolean;
+}) {
 	return (
-		<span aria-hidden="true" className={styles.icon}>
+		<span
+			aria-hidden="true"
+			className={`grid size-4 place-items-center [&_svg]:block [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-[1.45] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] ${isDestructive ? 'text-current' : 'text-white/[0.58]'}`}
+		>
 			{children}
 		</span>
 	);
@@ -47,7 +54,7 @@ export function UngroupIcon() {
 
 export function DeleteIcon() {
 	return (
-		<MenuIcon>
+		<MenuIcon isDestructive>
 			<svg aria-hidden="true" viewBox="0 0 20 20">
 				<path d="M3.5 5.5h13M8 3.5h4M5.5 5.5l.7 10a1.5 1.5 0 0 0 1.5 1.4h4.6a1.5 1.5 0 0 0 1.5-1.4l.7-10M8 8.5v5.5m4-5.5v5.5" />
 			</svg>
@@ -108,7 +115,11 @@ export function LinkIcon() {
 
 export function CaretRightIcon() {
 	return (
-		<svg aria-hidden="true" className={styles.caret} viewBox="0 0 16 16">
+		<svg
+			aria-hidden="true"
+			className="block size-3.5 fill-none stroke-current stroke-[1.7] [stroke-linecap:round] [stroke-linejoin:round]"
+			viewBox="0 0 16 16"
+		>
 			<path d="m6 3.5 4.5 4.5L6 12.5" />
 		</svg>
 	);

@@ -34,16 +34,7 @@ export function CanvasToolbar({
 }: CanvasToolbarProps) {
 	return (
 		<>
-			<div
-				style={{
-					position: 'absolute',
-					top: 12,
-					right: 12,
-					zIndex: 10,
-					display: 'flex',
-					gap: 8,
-				}}
-			>
+			<div className="absolute top-3 right-3 z-10 flex gap-2">
 				<CanvasToolbarButton onClick={onCenterViewport}>
 					Center
 				</CanvasToolbarButton>
@@ -65,17 +56,7 @@ export function CanvasToolbar({
 				/>
 			</div>
 
-			<div
-				style={{
-					position: 'absolute',
-					top: 12,
-					left: 12,
-					zIndex: 10,
-					display: 'flex',
-					flexDirection: 'column',
-					gap: 8,
-				}}
-			>
+			<div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
 				<CanvasToolbarButton onClick={onCreateTextNode}>
 					Text
 				</CanvasToolbarButton>

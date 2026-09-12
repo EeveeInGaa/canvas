@@ -153,6 +153,7 @@ export function Canvas() {
 		>
 			<ContextMenu.Trigger
 				aria-label="Canvas workspace"
+				className="relative h-[600px] w-[800px] touch-none overflow-hidden rounded-2xl border border-white/[0.12] bg-canvas"
 				role="application"
 				ref={canvasRef}
 				onPointerDown={handleCanvasPointerDown}
@@ -164,19 +165,11 @@ export function Canvas() {
 					setCursorCanvasPosition(null);
 				}}
 				style={{
-					position: 'relative',
-					width: '800px',
-					height: '600px',
-					overflow: 'hidden',
-					border: '1px solid rgba(255,255,255,0.12)',
-					borderRadius: 16,
-					background: '#111318',
 					cursor: isSpacePressed
 						? interaction.type === 'panning'
 							? 'grabbing'
 							: 'grab'
 						: 'crosshair',
-					touchAction: 'none',
 				}}
 			>
 				<CanvasGrid
@@ -186,12 +179,9 @@ export function Canvas() {
 				/>
 
 				<div
+					className="absolute left-0 top-0 origin-top-left"
 					style={{
-						position: 'absolute',
-						left: 0,
-						top: 0,
 						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
-						transformOrigin: '0 0',
 					}}
 				>
 					{groups.map((group) => (

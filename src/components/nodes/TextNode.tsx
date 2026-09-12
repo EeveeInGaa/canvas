@@ -33,6 +33,7 @@ export function TextNode({
 	if (isEditing) {
 		return (
 			<textarea
+				className="h-full w-full resize-none border-0 bg-transparent p-3 font-[inherit] text-white/[0.9] outline-0"
 				ref={textareaRef}
 				value={node.text}
 				onChange={handleChange}
@@ -45,35 +46,12 @@ export function TextNode({
 						event.currentTarget.blur();
 					}
 				}}
-				style={{
-					width: '100%',
-					height: '100%',
-					boxSizing: 'border-box',
-					border: 0,
-					outline: 0,
-					resize: 'none',
-					background: 'transparent',
-					color: 'rgba(255,255,255,0.9)',
-					padding: 12,
-					font: 'inherit',
-				}}
 			/>
 		);
 	}
 
 	return (
-		<div
-			style={{
-				width: '100%',
-				height: '100%',
-				boxSizing: 'border-box',
-				padding: 12,
-				color: 'rgba(255,255,255,0.9)',
-				whiteSpace: 'pre-wrap',
-				overflowWrap: 'anywhere',
-				overflow: 'hidden',
-			}}
-		>
+		<div className="h-full w-full overflow-hidden p-3 text-white/[0.9] whitespace-pre-wrap [overflow-wrap:anywhere]">
 			{node.text}
 		</div>
 	);

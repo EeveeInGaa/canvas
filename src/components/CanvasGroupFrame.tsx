@@ -16,6 +16,13 @@ type CanvasGroupFrameProps = {
 	) => void;
 };
 
+const GROUP_HANDLE_CLASS_NAMES = {
+	top: '-top-1.5 -right-1.5 -left-1.5 h-3',
+	right: '-top-1.5 -right-1.5 -bottom-1.5 w-3',
+	bottom: '-right-1.5 -bottom-1.5 -left-1.5 h-3',
+	left: '-top-1.5 -bottom-1.5 -left-1.5 w-3',
+} as const;
+
 export function CanvasGroupFrame({
 	group,
 	isDragging,
@@ -31,9 +38,11 @@ export function CanvasGroupFrame({
 		return null;
 	}
 
-	const borderColor = isSelected
-		? 'rgba(124,156,255,0.95)'
-		: 'rgba(255,255,255,0.32)';
+	const frameStateClassName = isDropTarget
+		? `border-2 ${isSelected ? 'border-accent/[0.95]' : 'border-white/[0.32]'} bg-accent/[0.05] shadow-[0_0_0_4px_rgba(124,156,255,0.12)]`
+		: isSelected
+			? 'border border-accent/[0.9] bg-transparent shadow-none'
+			: 'border border-accent/[0.45] bg-transparent shadow-none';
 
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: in this case fieldset would not make sense
@@ -43,72 +52,22 @@ export function CanvasGroupFrame({
 			}}
 			data-group-id={group.id}
 			aria-label="Node group"
+			className={`pointer-events-none absolute z-[1] box-border rounded-2xl transition-[border-color,background-color,box-shadow] duration-[120ms] ease-[ease] ${frameStateClassName}`}
 			role="group"
 			style={{
-				position: 'absolute',
 				left: groupRect.x - GROUP_FRAME_PADDING,
 				top: groupRect.y - GROUP_FRAME_PADDING,
 				width: groupRect.width + GROUP_FRAME_PADDING * 2,
 				height: groupRect.height + GROUP_FRAME_PADDING * 2,
-				boxSizing: 'border-box',
-				borderRadius: 16,
-				border: isDropTarget
-					? `2px solid ${borderColor}`
-					: isSelected
-						? '1px solid rgba(124,156,255,0.9)'
-						: '1px solid rgba(124,156,255,0.45)',
-				background: isDropTarget ? 'rgba(124,156,255,0.05)' : 'transparent',
-				boxShadow: isDropTarget ? '0 0 0 4px rgba(124,156,255,0.12)' : 'none',
-				transition:
-					'border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease',
-				pointerEvents: 'none',
-				zIndex: 1,
 			}}
 		>
 			{(['top', 'right', 'bottom', 'left'] as const).map((side) => (
 				<div
 					key={side}
 					aria-hidden="true"
+					className={`absolute touch-none pointer-events-auto ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${GROUP_HANDLE_CLASS_NAMES[side]}`}
 					onPointerDown={(event) => {
 						onPointerDown(event, group);
-					}}
-					style={{
-						position: 'absolute',
-						...(side === 'top'
-							? {
-									left: -6,
-									right: -6,
-									top: -6,
-									height: 12,
-								}
-							: {}),
-						...(side === 'right'
-							? {
-									top: -6,
-									right: -6,
-									bottom: -6,
-									width: 12,
-								}
-							: {}),
-						...(side === 'bottom'
-							? {
-									left: -6,
-									right: -6,
-									bottom: -6,
-									height: 12,
-								}
-							: {}),
-						...(side === 'left'
-							? {
-									top: -6,
-									left: -6,
-									bottom: -6,
-									width: 12,
-								}
-							: {}),
-						cursor: isDragging ? 'grabbing' : 'grab',
-						pointerEvents: 'auto',
-						touchAction: 'none',
 					}}
 				/>
 			))}

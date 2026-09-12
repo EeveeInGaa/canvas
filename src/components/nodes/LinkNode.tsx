@@ -44,6 +44,7 @@ export function LinkNode({
 	if (isEditing) {
 		return (
 			<div
+				className="flex h-full flex-col gap-2 p-3"
 				role="application"
 				onPointerDown={(event) => {
 					event.stopPropagation();
@@ -60,16 +61,9 @@ export function LinkNode({
 
 					onStopEditing();
 				}}
-				style={{
-					display: 'flex',
-					height: '100%',
-					boxSizing: 'border-box',
-					flexDirection: 'column',
-					gap: 8,
-					padding: 12,
-				}}
 			>
 				<input
+					className="w-full border-0 border-white/[0.16] border-b bg-transparent px-0 pt-1 pb-2 font-[inherit] font-semibold text-white/[0.92] outline-0"
 					ref={labelInputRef}
 					type="text"
 					value={node.label}
@@ -80,21 +74,10 @@ export function LinkNode({
 							event.currentTarget.blur();
 						}
 					}}
-					style={{
-						width: '100%',
-						boxSizing: 'border-box',
-						border: 0,
-						borderBottom: '1px solid rgba(255,255,255,0.16)',
-						outline: 0,
-						background: 'transparent',
-						color: 'rgba(255,255,255,0.92)',
-						padding: '4px 0 8px',
-						font: 'inherit',
-						fontWeight: 600,
-					}}
 				/>
 
 				<input
+					className="w-full border-0 bg-transparent p-0 font-[inherit] text-[13px] text-white/[0.65] outline-0"
 					type="url"
 					value={node.url}
 					placeholder="https://example.com"
@@ -103,17 +86,6 @@ export function LinkNode({
 						if (event.key === 'Escape') {
 							event.currentTarget.blur();
 						}
-					}}
-					style={{
-						width: '100%',
-						boxSizing: 'border-box',
-						border: 0,
-						outline: 0,
-						background: 'transparent',
-						color: 'rgba(255,255,255,0.65)',
-						padding: 0,
-						font: 'inherit',
-						fontSize: 13,
 					}}
 				/>
 			</div>
@@ -124,6 +96,7 @@ export function LinkNode({
 
 	return (
 		<a
+			className="flex h-full w-full cursor-[inherit] flex-col justify-center gap-1.5 overflow-hidden p-3 text-white/[0.92] no-underline"
 			href={node.url || undefined}
 			target="_blank"
 			rel="noreferrer"
@@ -132,41 +105,13 @@ export function LinkNode({
 					event.preventDefault();
 				}
 			}}
-			style={{
-				display: 'flex',
-				width: '100%',
-				height: '100%',
-				boxSizing: 'border-box',
-				flexDirection: 'column',
-				justifyContent: 'center',
-				gap: 6,
-				padding: 12,
-				color: 'rgba(255,255,255,0.92)',
-				textDecoration: 'none',
-				overflow: 'hidden',
-				cursor: 'inherit',
-			}}
 		>
-			<strong
-				style={{
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap',
-				}}
-			>
+			<strong className="overflow-hidden text-ellipsis whitespace-nowrap">
 				{displayLabel}
 			</strong>
 
 			{node.url && (
-				<span
-					style={{
-						overflow: 'hidden',
-						color: 'rgba(255,255,255,0.55)',
-						fontSize: 12,
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap',
-					}}
-				>
+				<span className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-white/[0.55]">
 					{node.url}
 				</span>
 			)}

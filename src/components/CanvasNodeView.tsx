@@ -41,8 +41,15 @@ export function CanvasNodeView({
 	onElementChange,
 	onLinkChange,
 }: CanvasNodeViewProps) {
+	const nodeStateClassName = `${
+		isSelected ? 'border-2 border-accent/[0.95]' : 'border border-white/[0.14]'
+	} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${
+		isEditing ? 'select-text' : 'select-none'
+	}`;
+
 	return (
 		<div
+			className={`absolute box-border touch-none overflow-hidden rounded-xl bg-surface ${nodeStateClassName}`}
 			role="application"
 			ref={(element) => {
 				onElementChange(node.id, element);
@@ -56,21 +63,10 @@ export function CanvasNodeView({
 				onStartEditing(node.id);
 			}}
 			style={{
-				position: 'absolute',
 				left: node.x,
 				top: node.y,
 				width: node.width,
 				height: node.height,
-				boxSizing: 'border-box',
-				border: isSelected
-					? '2px solid rgba(124,156,255,0.95)'
-					: '1px solid rgba(255,255,255,0.14)',
-				borderRadius: 12,
-				background: 'rgba(34,37,46)',
-				overflow: 'hidden',
-				cursor: isDragging ? 'grabbing' : 'grab',
-				userSelect: isEditing ? 'text' : 'none',
-				touchAction: 'none',
 			}}
 		>
 			{node.type === CanvasNodeType.Text && (
@@ -94,31 +90,12 @@ export function CanvasNodeView({
 			{isSelected && !isEditing && (
 				<div
 					aria-hidden="true"
+					className="absolute -right-[13px] -bottom-[13px] flex size-6 touch-none cursor-nwse-resize items-start justify-start"
 					onPointerDown={(event) => {
 						onResizePointerDown(event, node);
 					}}
-					style={{
-						position: 'absolute',
-						right: -13,
-						bottom: -13,
-						width: 24,
-						height: 24,
-						display: 'flex',
-						alignItems: 'start',
-						justifyContent: 'start',
-						cursor: 'nwse-resize',
-						touchAction: 'none',
-					}}
 				>
-					<div
-						style={{
-							position: 'relative',
-							width: 6,
-							height: 6,
-							borderRadius: '50%',
-							background: 'rgba(124,156,255,0.5)',
-						}}
-					/>
+					<div className="relative size-1.5 rounded-full bg-accent/50" />
 				</div>
 			)}
 		</div>
