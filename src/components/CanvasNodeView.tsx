@@ -1,11 +1,12 @@
 import type { PointerEvent } from 'react';
 
-import {
-	LinkNode,
-	type LinkNodeChanges,
-} from '@/components/nodes/LinkNode.tsx';
+import { LinkNode } from '@/components/nodes/LinkNode.tsx';
 import { TextNode } from '@/components/nodes/TextNode.tsx';
-import { type CanvasNode, CanvasNodeType } from '@/types/canvas-node.types.ts';
+import {
+	type CanvasNode,
+	CanvasNodeType,
+	type LinkNodeChanges,
+} from '@/types/canvas-node.types.ts';
 
 type CanvasNodeViewProps = {
 	node: CanvasNode;

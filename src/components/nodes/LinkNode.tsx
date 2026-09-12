@@ -1,8 +1,9 @@
 import { type ChangeEvent, useLayoutEffect, useRef } from 'react';
 
-import type { LinkCanvasNode } from '@/types/canvas-node.types.ts';
-
-export type LinkNodeChanges = Partial<Pick<LinkCanvasNode, 'label' | 'url'>>;
+import type {
+	LinkCanvasNode,
+	LinkNodeChanges,
+} from '@/types/canvas-node.types.ts';
 
 type LinkNodeProps = {
 	node: LinkCanvasNode;

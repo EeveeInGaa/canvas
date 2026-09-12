@@ -1,577 +1,76 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
-import { CanvasContextMenu } from '@/components/CanvasContextMenu.tsx';
-import { CanvasDebugOverlay } from '@/components/CanvasDebugOverlay.tsx';
-import { CanvasGrid } from '@/components/CanvasGrid.tsx';
-import { CanvasGroupFrame } from '@/components/CanvasGroupFrame.tsx';
-import { CanvasNodeView } from '@/components/CanvasNodeView.tsx';
-import { CanvasSelectionBox } from '@/components/CanvasSelectionBox.tsx';
-import { CanvasToolbar } from '@/components/CanvasToolbar.tsx';
-import type { LinkNodeChanges } from '@/components/nodes/LinkNode.tsx';
-import { useCanvasHistory } from '@/hooks/useCanvasHistory.ts';
-import { useCanvasInteractions } from '@/hooks/useCanvasInteractions.ts';
-import { useCanvasKeyboard } from '@/hooks/useCanvasKeyboard.ts';
-import { useCanvasViewport } from '@/hooks/useCanvasViewport.ts';
-import {
-	type CanvasDocument,
-	type CanvasGroup,
-	type CanvasNode,
-	CanvasNodeType,
-} from '@/types/canvas-node.types.ts';
-import type { Point } from '@/types/geometry.types.ts';
-import { screenToCanvas } from '@/utils/coordinates.ts';
-import { getGridMetrics, SNAP_GRID_SIZE } from '@/utils/grid.ts';
-import { createGroupId } from '@/utils/group.ts';
-import {
-	createLinkNode,
-	createTextNode,
-	duplicateNodes,
-} from '@/utils/node.ts';
-
-function areCanvasNodesEqual(
-	leftNodes: CanvasNode[],
-	rightNodes: CanvasNode[],
-) {
-	if (leftNodes.length !== rightNodes.length) {
-		return false;
-	}
-
-	return leftNodes.every((leftNode, index) => {
-		const rightNode = rightNodes[index];
-
-		if (!rightNode) {
-			return false;
-		}
-
-		const sharedFieldsAreEqual =
-			leftNode.id === rightNode.id &&
-			leftNode.type === rightNode.type &&
-			leftNode.x === rightNode.x &&
-			leftNode.y === rightNode.y &&
-			leftNode.width === rightNode.width &&
-			leftNode.height === rightNode.height;
-
-		if (!sharedFieldsAreEqual) {
-			return false;
-		}
-
-		if (
-			leftNode.type === CanvasNodeType.Text &&
-			rightNode.type === CanvasNodeType.Text
-		) {
-			return leftNode.text === rightNode.text;
-		}
-
-		if (
-			leftNode.type === CanvasNodeType.Link &&
-			rightNode.type === CanvasNodeType.Link
-		) {
-			return (
-				leftNode.url === rightNode.url && leftNode.label === rightNode.label
-			);
-		}
-
-		return false;
-	});
-}
-
-function areCanvasGroupsEqual(
-	leftGroups: CanvasGroup[],
-	rightGroups: CanvasGroup[],
-) {
-	if (leftGroups.length !== rightGroups.length) {
-		return false;
-	}
-
-	return leftGroups.every((leftGroup, index) => {
-		const rightGroup = rightGroups[index];
-
-		return (
-			rightGroup &&
-			leftGroup.id === rightGroup.id &&
-			leftGroup.nodeIds.length === rightGroup.nodeIds.length &&
-			leftGroup.nodeIds.every(
-				(nodeId, nodeIndex) => nodeId === rightGroup.nodeIds[nodeIndex],
-			)
-		);
-	});
-}
-
-function areCanvasDocumentsEqual(
-	leftDocument: CanvasDocument,
-	rightDocument: CanvasDocument,
-) {
-	return (
-		areCanvasNodesEqual(leftDocument.nodes, rightDocument.nodes) &&
-		areCanvasGroupsEqual(leftDocument.groups, rightDocument.groups)
-	);
-}
-
-function sanitizeGroups(groups: CanvasGroup[], nodes: CanvasNode[]) {
-	const nodeIds = new Set(nodes.map((node) => node.id));
-
-	return groups
-		.map((group) => ({
-			...group,
-			nodeIds: group.nodeIds.filter((nodeId) => nodeIds.has(nodeId)),
-		}))
-		.filter((group) => group.nodeIds.length > 1);
-}
+import { CanvasContextMenu } from '@/components/CanvasContextMenu';
+import { CanvasDebugOverlay } from '@/components/CanvasDebugOverlay';
+import { CanvasGrid } from '@/components/CanvasGrid';
+import { CanvasGroupFrame } from '@/components/CanvasGroupFrame';
+import { CanvasNodeView } from '@/components/CanvasNodeView';
+import { CanvasSelectionBox } from '@/components/CanvasSelectionBox';
+import { CanvasToolbar } from '@/components/CanvasToolbar';
+import { useCanvasCommands } from '@/hooks/useCanvasCommands';
+import { useCanvasContextMenu } from '@/hooks/useCanvasContextMenu';
+import { useCanvasDocument } from '@/hooks/useCanvasDocument';
+import { useCanvasInteractions } from '@/hooks/useCanvasInteractions';
+import { useCanvasKeyboard } from '@/hooks/useCanvasKeyboard';
+import { useCanvasSelection } from '@/hooks/useCanvasSelection';
+import { useCanvasTextEditHistory } from '@/hooks/useCanvasTextEditHistory';
+import { useCanvasViewport } from '@/hooks/useCanvasViewport';
+import type { Point } from '@/types/geometry.types';
+import { getGridMetrics, SNAP_GRID_SIZE } from '@/utils/grid';
 
 export function Canvas() {
 	const canvasRef = useRef<HTMLDivElement | null>(null);
-	const textEditStartDocumentRef = useRef<CanvasDocument | null>(null);
-	const previousEditingNodeIdRef = useRef<string | null>(null);
 
+	const documentController = useCanvasDocument();
+	const { canvasDocument, nodes, groups } = documentController;
+
+	const selectionController = useCanvasSelection({ nodes, groups });
 	const {
-		value: canvasDocument,
-		commit: commitDocument,
-		replace: replaceDocument,
-		record: recordDocumentChange,
-		undo,
-		redo,
-		canUndo,
-		canRedo,
-	} = useCanvasHistory<CanvasDocument>({
-		nodes: [],
-		groups: [],
+		selectedNodeIds,
+		selectedGroupIds,
+		editingNodeId,
+		selectedNodeIdSet,
+		selectedGroupIdSet,
+		selectedGroupNodeIdSet,
+		effectiveSelectedNodeIds,
+		setSelectedNodeIds,
+		setSelectedGroupIds,
+		setEditingNodeId,
+	} = selectionController;
+
+	const { commitPendingTextEdit } = useCanvasTextEditHistory({
+		canvasDocument,
+		editingNodeId,
+		recordDocumentChange: documentController.recordDocumentChange,
 	});
-
-	const nodes = canvasDocument.nodes;
-	const groups = canvasDocument.groups;
-
-	const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
-	const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-	const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-
-	const [cursorCanvasPosition, setCursorCanvasPosition] =
-		useState<Point | null>(null);
-
-	const [isSnapEnabled, setIsSnapEnabled] = useState(false);
-	const [isDebugEnabled, setIsDebugEnabled] = useState(false);
-	const [isInfoOpen, setIsInfoOpen] = useState(false);
-	const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
-	const [isSelectionContextMenu, setIsSelectionContextMenu] = useState(false);
-	const contextMenuCanvasPositionRef = useRef<Point | null>(null);
 
 	const { viewport, setViewport, centerViewportOnOrigin } = useCanvasViewport({
 		canvasRef,
 	});
 
-	const gridMetrics = getGridMetrics({
+	const commands = useCanvasCommands({
+		canvasRef,
 		viewport,
+		documentController,
+		selectionController,
+		commitPendingTextEdit,
 	});
 
-	const selectedNodeIdSet = useMemo(
-		() => new Set(selectedNodeIds),
-		[selectedNodeIds],
-	);
-
-	const selectedGroupIdSet = useMemo(
-		() => new Set(selectedGroupIds),
-		[selectedGroupIds],
-	);
-
-	const selectedGroupNodeIdSet = useMemo(() => {
-		const nodeIds = new Set<string>();
-
-		for (const group of groups) {
-			if (!selectedGroupIdSet.has(group.id)) {
-				continue;
-			}
-
-			for (const nodeId of group.nodeIds) {
-				nodeIds.add(nodeId);
-			}
-		}
-
-		return nodeIds;
-	}, [groups, selectedGroupIdSet]);
-
-	const effectiveSelectedNodeIdSet = useMemo(
-		() => new Set([...selectedNodeIds, ...selectedGroupNodeIdSet]),
-		[selectedGroupNodeIdSet, selectedNodeIds],
-	);
-
-	const effectiveSelectedNodeIds = useMemo(
-		() => [...effectiveSelectedNodeIdSet],
-		[effectiveSelectedNodeIdSet],
-	);
-
-	const commitNodes = useCallback(
-		(value: React.SetStateAction<CanvasNode[]>) => {
-			commitDocument((currentDocument) => {
-				const nextNodes =
-					typeof value === 'function' ? value(currentDocument.nodes) : value;
-				const nextGroups = sanitizeGroups(currentDocument.groups, nextNodes);
-
-				return {
-					nodes: nextNodes,
-					groups: nextGroups,
-				};
-			});
-		},
-		[commitDocument],
-	);
-
-	const replaceNodes = useCallback(
-		(value: React.SetStateAction<CanvasNode[]>) => {
-			replaceDocument((currentDocument) => {
-				const nextNodes =
-					typeof value === 'function' ? value(currentDocument.nodes) : value;
-				const nextGroups = sanitizeGroups(currentDocument.groups, nextNodes);
-
-				return {
-					nodes: nextNodes,
-					groups: nextGroups,
-				};
-			});
-		},
-		[replaceDocument],
-	);
-
-	const commitPendingTextEdit = useCallback(() => {
-		const textEditStartDocument = textEditStartDocumentRef.current;
-
-		if (
-			textEditStartDocument &&
-			!areCanvasDocumentsEqual(textEditStartDocument, canvasDocument)
-		) {
-			recordDocumentChange(textEditStartDocument);
-		}
-
-		textEditStartDocumentRef.current = null;
-	}, [canvasDocument, recordDocumentChange]);
-
-	useEffect(() => {
-		if (previousEditingNodeIdRef.current === editingNodeId) {
-			return;
-		}
-
-		if (previousEditingNodeIdRef.current !== null) {
-			commitPendingTextEdit();
-		}
-
-		textEditStartDocumentRef.current =
-			editingNodeId !== null ? canvasDocument : null;
-		previousEditingNodeIdRef.current = editingNodeId;
-	}, [canvasDocument, commitPendingTextEdit, editingNodeId]);
-
-	useEffect(() => {
-		const nodeIds = new Set(nodes.map((node) => node.id));
-		const groupIds = new Set(groups.map((group) => group.id));
-
-		setSelectedNodeIds((currentSelectedNodeIds) => {
-			const nextSelectedNodeIds = currentSelectedNodeIds.filter((nodeId) =>
-				nodeIds.has(nodeId),
-			);
-
-			return nextSelectedNodeIds.length === currentSelectedNodeIds.length
-				? currentSelectedNodeIds
-				: nextSelectedNodeIds;
-		});
-
-		if (editingNodeId && !nodeIds.has(editingNodeId)) {
-			setEditingNodeId(null);
-		}
-
-		setSelectedGroupIds((currentSelectedGroupIds) => {
-			const nextSelectedGroupIds = currentSelectedGroupIds.filter((groupId) =>
-				groupIds.has(groupId),
-			);
-
-			return nextSelectedGroupIds.length === currentSelectedGroupIds.length
-				? currentSelectedGroupIds
-				: nextSelectedGroupIds;
-		});
-	}, [editingNodeId, groups, nodes]);
-
-	const createNodeAtPosition = useCallback(
-		(type: CanvasNodeType, position: Point) => {
-			const newNode =
-				type === CanvasNodeType.Text
-					? createTextNode(position)
-					: createLinkNode(position);
-
-			commitNodes((currentNodes) => [...currentNodes, newNode]);
-
-			setSelectedNodeIds([newNode.id]);
-			setSelectedGroupIds([]);
-			setEditingNodeId(newNode.id);
-		},
-		[commitNodes],
-	);
-
-	const createNodeAtCanvasCenter = useCallback(
-		(type: CanvasNodeType) => {
-			const canvasElement = canvasRef.current;
-
-			if (!canvasElement) {
-				return;
-			}
-
-			const canvasRect = canvasElement.getBoundingClientRect();
-			const position = screenToCanvas({
-				screenX: canvasRect.left + canvasRect.width / 2,
-				screenY: canvasRect.top + canvasRect.height / 2,
-				canvasRect,
-				viewport,
-			});
-
-			createNodeAtPosition(type, position);
-		},
-		[createNodeAtPosition, viewport],
-	);
-	/*const createNodeAtPointer = useCallback(
-		(event: React.MouseEvent<HTMLDivElement>) => {
-			event.preventDefault();
-
-			const canvasElement = canvasRef.current;
-
-			if (!canvasElement) {
-				return;
-			}
-
-			const position = screenToCanvas({
-				screenX: event.clientX,
-				screenY: event.clientY,
-				canvasRect: canvasElement.getBoundingClientRect(),
-				viewport,
-			});
-
-			const newNode = createTextNode(position);
-
-			commitNodes((currentNodes) => [...currentNodes, newNode]);
-
-			setSelectedNodeIds([newNode.id]);
-			setEditingNodeId(newNode.id);
-		},
-		[commitNodes, viewport],
-	);*/
-
-	const createTextNodeAtCanvasCenter = useCallback(() => {
-		createNodeAtCanvasCenter(CanvasNodeType.Text);
-	}, [createNodeAtCanvasCenter]);
-
-	const createLinkNodeAtCanvasCenter = useCallback(() => {
-		createNodeAtCanvasCenter(CanvasNodeType.Link);
-	}, [createNodeAtCanvasCenter]);
-
-	const createNodeAtContextMenuPosition = useCallback(
-		(type: CanvasNodeType) => {
-			const position = contextMenuCanvasPositionRef.current;
-
-			if (position) {
-				createNodeAtPosition(type, position);
-				return;
-			}
-
-			createNodeAtCanvasCenter(type);
-		},
-		[createNodeAtCanvasCenter, createNodeAtPosition],
-	);
-
-	const createTextNodeAtContextMenuPosition = useCallback(() => {
-		createNodeAtContextMenuPosition(CanvasNodeType.Text);
-	}, [createNodeAtContextMenuPosition]);
-
-	const createLinkNodeAtContextMenuPosition = useCallback(() => {
-		createNodeAtContextMenuPosition(CanvasNodeType.Link);
-	}, [createNodeAtContextMenuPosition]);
-
-	const updateNodeText = useCallback(
-		(nodeId: string, text: string) => {
-			replaceNodes((currentNodes) =>
-				currentNodes.map((node) =>
-					node.id === nodeId && node.type === CanvasNodeType.Text
-						? {
-								...node,
-								text,
-							}
-						: node,
-				),
-			);
-		},
-		[replaceNodes],
-	);
-
-	const updateLinkNode = useCallback(
-		(nodeId: string, changes: LinkNodeChanges) => {
-			replaceNodes((currentNodes) =>
-				currentNodes.map((node) =>
-					node.id === nodeId && node.type === CanvasNodeType.Link
-						? {
-								...node,
-								...changes,
-							}
-						: node,
-				),
-			);
-		},
-		[replaceNodes],
-	);
-
-	const deleteSelectedNodes = useCallback(() => {
-		if (effectiveSelectedNodeIdSet.size === 0) {
-			return;
-		}
-
-		commitNodes((currentNodes) => {
-			const nextNodes = currentNodes.filter(
-				(node) => !effectiveSelectedNodeIdSet.has(node.id),
-			);
-
-			return nextNodes.length === currentNodes.length
-				? currentNodes
-				: nextNodes;
-		});
-
-		setSelectedNodeIds([]);
-		setSelectedGroupIds([]);
-		setEditingNodeId(null);
-	}, [commitNodes, effectiveSelectedNodeIdSet]);
-
-	const duplicateSelectedNodes = useCallback(() => {
-		const selectedNodes = nodes.filter((node) =>
-			effectiveSelectedNodeIdSet.has(node.id),
-		);
-
-		if (selectedNodes.length === 0) {
-			return;
-		}
-
-		const duplicatedNodes = duplicateNodes(selectedNodes);
-
-		commitNodes((currentNodes) => [...currentNodes, ...duplicatedNodes]);
-
-		setSelectedNodeIds(duplicatedNodes.map((node) => node.id));
-		setSelectedGroupIds([]);
-		setEditingNodeId(null);
-	}, [commitNodes, effectiveSelectedNodeIdSet, nodes]);
-
-	const deleteSelectedNodesAndCloseContextMenu = useCallback(() => {
-		deleteSelectedNodes();
-		setIsContextMenuOpen(false);
-	}, [deleteSelectedNodes]);
-
-	const duplicateSelectedNodesAndCloseContextMenu = useCallback(() => {
-		duplicateSelectedNodes();
-		setIsContextMenuOpen(false);
-	}, [duplicateSelectedNodes]);
-
-	const moveSelectedNodes = useCallback(
-		(deltaX: number, deltaY: number) => {
-			if (effectiveSelectedNodeIdSet.size === 0) {
-				return false;
-			}
-
-			commitNodes((currentNodes) =>
-				currentNodes.map((node) =>
-					effectiveSelectedNodeIdSet.has(node.id)
-						? {
-								...node,
-								x: node.x + deltaX,
-								y: node.y + deltaY,
-							}
-						: node,
-				),
-			);
-
-			return true;
-		},
-		[commitNodes, effectiveSelectedNodeIdSet],
-	);
-
-	const groupSelectedNodes = useCallback(() => {
-		const existingNodeIds = new Set(nodes.map((node) => node.id));
-
-		const groupNodeIds = effectiveSelectedNodeIds.filter((nodeId) =>
-			existingNodeIds.has(nodeId),
-		);
-
-		if (groupNodeIds.length < 2) {
-			return;
-		}
-
-		const groupedNodeIdSet = new Set(groupNodeIds);
-
-		const newGroup: CanvasGroup = {
-			id: createGroupId(),
-			nodeIds: groupNodeIds,
-		};
-
-		commitDocument((currentDocument) => {
-			const remainingGroups = sanitizeGroups(
-				currentDocument.groups.map((group) => ({
-					...group,
-					nodeIds: group.nodeIds.filter(
-						(nodeId) => !groupedNodeIdSet.has(nodeId),
-					),
-				})),
-				currentDocument.nodes,
-			);
-
-			return {
-				nodes: currentDocument.nodes,
-				groups: [...remainingGroups, newGroup],
-			};
-		});
-
-		setSelectedNodeIds([]);
-		setSelectedGroupIds([newGroup.id]);
-		setEditingNodeId(null);
-	}, [commitDocument, effectiveSelectedNodeIds, nodes]);
-
-	const ungroupSelectedGroups = useCallback(() => {
-		if (selectedGroupIds.length === 0) {
-			return;
-		}
-
-		const selectedGroupIdSet = new Set(selectedGroupIds);
-
-		const ungroupedNodeIds = [
-			...new Set(
-				groups
-					.filter((group) => selectedGroupIdSet.has(group.id))
-					.flatMap((group) => group.nodeIds),
-			),
-		];
-
-		commitDocument((currentDocument) => ({
-			nodes: currentDocument.nodes,
-			groups: currentDocument.groups.filter(
-				(group) => !selectedGroupIdSet.has(group.id),
-			),
-		}));
-
-		setSelectedNodeIds(ungroupedNodeIds);
-		setSelectedGroupIds([]);
-		setEditingNodeId(null);
-	}, [commitDocument, groups, selectedGroupIds]);
-
-	const startNodeEditing = useCallback((nodeId: string) => {
-		setSelectedNodeIds([nodeId]);
-		setSelectedGroupIds([]);
-		setEditingNodeId(nodeId);
-	}, []);
-
-	const stopNodeEditing = useCallback(() => {
-		commitPendingTextEdit();
-		setEditingNodeId(null);
-	}, [commitPendingTextEdit]);
-
-	const handleUndo = useCallback(() => {
-		commitPendingTextEdit();
-		setEditingNodeId(null);
-		undo();
-	}, [commitPendingTextEdit, undo]);
-
-	const handleRedo = useCallback(() => {
-		commitPendingTextEdit();
-		setEditingNodeId(null);
-		redo();
-	}, [commitPendingTextEdit, redo]);
+	const [cursorCanvasPosition, setCursorCanvasPosition] =
+		useState<Point | null>(null);
+	const [isSnapEnabled, setIsSnapEnabled] = useState(false);
+	const [isDebugEnabled, setIsDebugEnabled] = useState(false);
+	const [isInfoOpen, setIsInfoOpen] = useState(false);
+
+	const gridMetrics = getGridMetrics({ viewport });
+
+	const contextMenu = useCanvasContextMenu({
+		canvasRef,
+		viewport,
+		commands,
+		selectionController,
+	});
 
 	const toggleDebug = useCallback(() => {
 		setIsDebugEnabled((currentValue) => !currentValue);
@@ -589,18 +88,18 @@ export function Canvas() {
 		moveDistance: isSnapEnabled ? SNAP_GRID_SIZE : 5,
 		shiftMoveDistance: isSnapEnabled ? SNAP_GRID_SIZE * 2 : 20,
 		onCenterViewport: centerViewportOnOrigin,
-		onCreateLinkNode: createLinkNodeAtCanvasCenter,
-		onCreateTextNode: createTextNodeAtCanvasCenter,
-		onDelete: deleteSelectedNodesAndCloseContextMenu,
-		onDuplicate: duplicateSelectedNodesAndCloseContextMenu,
-		onMoveSelection: moveSelectedNodes,
-		onUndo: handleUndo,
-		onRedo: handleRedo,
-		onGroup: groupSelectedNodes,
+		onCreateLinkNode: commands.createLinkNodeAtCanvasCenter,
+		onCreateTextNode: commands.createTextNodeAtCanvasCenter,
+		onDelete: contextMenu.deleteSelection,
+		onDuplicate: contextMenu.duplicateSelection,
+		onMoveSelection: commands.moveSelectedNodes,
+		onUndo: commands.undoDocument,
+		onRedo: commands.redoDocument,
+		onGroup: commands.groupSelectedNodes,
 		onToggleDebug: toggleDebug,
 		onToggleInfo: toggleInfo,
 		onToggleSnap: toggleSnap,
-		onUngroup: ungroupSelectedGroups,
+		onUngroup: commands.ungroupSelectedGroups,
 	});
 
 	const {
@@ -625,9 +124,9 @@ export function Canvas() {
 		isSpacePressed,
 		isSnapEnabled,
 		gridSize: SNAP_GRID_SIZE,
-		setNodes: replaceNodes,
-		commitDocument,
-		recordDocumentChange,
+		setNodes: documentController.replaceNodes,
+		commitDocument: documentController.commitDocument,
+		recordDocumentChange: documentController.recordDocumentChange,
 		setSelectedNodeIds,
 		selectedGroupIds,
 		setSelectedGroupIds,
@@ -636,62 +135,21 @@ export function Canvas() {
 		setCursorCanvasPosition,
 	});
 
-	const handleContextMenu = useCallback(
-		(event: React.MouseEvent<HTMLDivElement>) => {
-			const eventTarget = event.target;
-			const targetElement =
-				eventTarget instanceof Element ? eventTarget : event.currentTarget;
-			const nodeElement = targetElement.closest<HTMLElement>('[data-node-id]');
-			const groupElement =
-				targetElement.closest<HTMLElement>('[data-group-id]');
+	const orderedNodes = useMemo(
+		() =>
+			[...nodes].sort((leftNode, rightNode) => {
+				const leftSelected = selectedNodeIdSet.has(leftNode.id) ? 1 : 0;
+				const rightSelected = selectedNodeIdSet.has(rightNode.id) ? 1 : 0;
 
-			if (nodeElement?.dataset.nodeId) {
-				const nodeId = nodeElement.dataset.nodeId;
-
-				if (!effectiveSelectedNodeIdSet.has(nodeId)) {
-					setSelectedNodeIds([nodeId]);
-					setSelectedGroupIds([]);
-				}
-
-				setEditingNodeId(null);
-				setIsSelectionContextMenu(true);
-				return;
-			}
-
-			if (groupElement?.dataset.groupId) {
-				const groupId = groupElement.dataset.groupId;
-
-				if (!selectedGroupIdSet.has(groupId)) {
-					setSelectedNodeIds([]);
-					setSelectedGroupIds([groupId]);
-				}
-
-				setEditingNodeId(null);
-				setIsSelectionContextMenu(true);
-				return;
-			}
-
-			const canvasElement = canvasRef.current;
-
-			if (canvasElement) {
-				contextMenuCanvasPositionRef.current = screenToCanvas({
-					screenX: event.clientX,
-					screenY: event.clientY,
-					canvasRect: canvasElement.getBoundingClientRect(),
-					viewport,
-				});
-			}
-
-			setEditingNodeId(null);
-			setIsSelectionContextMenu(false);
-		},
-		[effectiveSelectedNodeIdSet, selectedGroupIdSet, viewport],
+				return leftSelected - rightSelected;
+			}),
+		[nodes, selectedNodeIdSet],
 	);
 
 	return (
 		<ContextMenu.Root
-			onOpenChange={setIsContextMenuOpen}
-			open={isContextMenuOpen}
+			onOpenChange={contextMenu.setIsOpen}
+			open={contextMenu.isOpen}
 		>
 			<ContextMenu.Trigger
 				aria-label="Canvas workspace"
@@ -701,7 +159,7 @@ export function Canvas() {
 				onPointerMove={handleCanvasPointerMove}
 				onPointerUp={handleCanvasPointerUp}
 				onPointerCancel={handleCanvasPointerCancel}
-				onContextMenu={handleContextMenu}
+				onContextMenu={contextMenu.handleContextMenu}
 				onPointerLeave={() => {
 					setCursorCanvasPosition(null);
 				}}
@@ -751,34 +209,29 @@ export function Canvas() {
 							onElementChange={registerGroupElement}
 						/>
 					))}
-					{[...nodes]
-						.sort((a, b) => {
-							const aSelected = selectedNodeIdSet.has(a.id) ? 1 : 0;
-							const bSelected = selectedNodeIdSet.has(b.id) ? 1 : 0;
-							return aSelected - bSelected;
-						})
-						.map((node) => (
-							<CanvasNodeView
-								key={node.id}
-								node={node}
-								isSelected={
-									selectedNodeIdSet.has(node.id) &&
-									!selectedGroupNodeIdSet.has(node.id)
-								}
-								isEditing={editingNodeId === node.id}
-								isDragging={
-									interaction.type === 'dragging' &&
-									interaction.nodeIds.includes(node.id)
-								}
-								onPointerDown={handleNodePointerDown}
-								onResizePointerDown={handleResizePointerDown}
-								onStartEditing={startNodeEditing}
-								onStopEditing={stopNodeEditing}
-								onTextChange={updateNodeText}
-								onLinkChange={updateLinkNode}
-								onElementChange={registerNodeElement}
-							/>
-						))}
+
+					{orderedNodes.map((node) => (
+						<CanvasNodeView
+							key={node.id}
+							node={node}
+							isSelected={
+								selectedNodeIdSet.has(node.id) &&
+								!selectedGroupNodeIdSet.has(node.id)
+							}
+							isEditing={editingNodeId === node.id}
+							isDragging={
+								interaction.type === 'dragging' &&
+								interaction.nodeIds.includes(node.id)
+							}
+							onPointerDown={handleNodePointerDown}
+							onResizePointerDown={handleResizePointerDown}
+							onStartEditing={commands.startNodeEditing}
+							onStopEditing={commands.stopNodeEditing}
+							onTextChange={commands.updateNodeText}
+							onLinkChange={commands.updateLinkNode}
+							onElementChange={registerNodeElement}
+						/>
+					))}
 
 					<CanvasSelectionBox rect={selectionRect} />
 				</div>
@@ -787,36 +240,37 @@ export function Canvas() {
 					isDebugEnabled={isDebugEnabled}
 					isInfoOpen={isInfoOpen}
 					isSnapEnabled={isSnapEnabled}
-					canRedo={canRedo}
-					canUndo={canUndo}
+					canRedo={documentController.canRedo}
+					canUndo={documentController.canUndo}
 					onCenterViewport={centerViewportOnOrigin}
 					onInfoOpenChange={setIsInfoOpen}
-					onRedo={handleRedo}
+					onRedo={commands.redoDocument}
 					onToggleDebug={toggleDebug}
 					onToggleSnap={toggleSnap}
-					onUndo={handleUndo}
-					onCreateTextNode={createTextNodeAtCanvasCenter}
-					onCreateLinkNode={createLinkNodeAtCanvasCenter}
+					onUndo={commands.undoDocument}
+					onCreateTextNode={commands.createTextNodeAtCanvasCenter}
+					onCreateLinkNode={commands.createLinkNodeAtCanvasCenter}
 				/>
 
 				{isDebugEnabled && (
 					<CanvasDebugOverlay position={cursorCanvasPosition} />
 				)}
 			</ContextMenu.Trigger>
+
 			<CanvasContextMenu
 				canGroup={effectiveSelectedNodeIds.length > 1}
 				canUngroup={selectedGroupIds.length > 0}
-				isSelectionMenu={isSelectionContextMenu}
+				isSelectionMenu={contextMenu.isSelectionMenu}
 				isSnapEnabled={isSnapEnabled}
 				selectionCount={effectiveSelectedNodeIds.length}
 				onCenterViewport={centerViewportOnOrigin}
-				onCreateLinkNode={createLinkNodeAtContextMenuPosition}
-				onCreateTextNode={createTextNodeAtContextMenuPosition}
-				onDelete={deleteSelectedNodesAndCloseContextMenu}
-				onDuplicate={duplicateSelectedNodesAndCloseContextMenu}
-				onGroup={groupSelectedNodes}
+				onCreateLinkNode={contextMenu.createLinkNode}
+				onCreateTextNode={contextMenu.createTextNode}
+				onDelete={contextMenu.deleteSelection}
+				onDuplicate={contextMenu.duplicateSelection}
+				onGroup={commands.groupSelectedNodes}
 				onToggleSnap={toggleSnap}
-				onUngroup={ungroupSelectedGroups}
+				onUngroup={commands.ungroupSelectedGroups}
 			/>
 		</ContextMenu.Root>
 	);

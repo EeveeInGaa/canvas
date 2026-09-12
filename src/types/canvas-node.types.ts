@@ -23,6 +23,8 @@ export type LinkCanvasNode = BaseCanvasNode & {
 	label: string;
 };
 
+export type LinkNodeChanges = Partial<Pick<LinkCanvasNode, 'label' | 'url'>>;
+
 export type CanvasNode = TextCanvasNode | LinkCanvasNode;
 
 export type CanvasGroup = {

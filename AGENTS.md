@@ -3,7 +3,7 @@
 ## Project overview
 
 - The application is a React 19 canvas built with Vite and TypeScript.
-- `src/main.tsx` mounts `src/App.tsx`; the canvas feature lives in `src/canvas`.
+- `src/main.tsx` mounts `src/App.tsx`. Canvas components, hooks, types, and pure utilities live in their corresponding top-level `src` directories.
 - Base UI provides accessible headless primitives for popovers, accordions, and context menus.
 - Tailwind CSS v4 is the primary styling system.
 - The canvas workspace intentionally remains fixed at 800 by 600 pixels until responsive resizing is implemented as a separate feature.
@@ -20,7 +20,7 @@ Run `pnpm check` and `pnpm build` after source changes. The project does not hav
 
 ## Code structure
 
-- Keep the canvas feature self-contained under `src/canvas`.
+- Keep UI components in `src/components`, stateful behavior in `src/hooks`, shared types in `src/types`, and pure calculations or state transformations in `src/utils`.
 - Keep React components focused on rendering and event wiring. Move reusable state transitions and geometry calculations into hooks or pure domain modules.
 - Split files by responsibility when a component or hook coordinates unrelated behaviors. Avoid creating one-file abstractions for trivial values.
 - Prefer named exports, the `@/` alias for cross-directory imports, and extensionless TypeScript imports.
