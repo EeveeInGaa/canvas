@@ -153,7 +153,7 @@ export function Canvas() {
 		>
 			<ContextMenu.Trigger
 				aria-label="Canvas workspace"
-				className="relative h-[600px] w-[800px] touch-none overflow-hidden rounded-2xl border border-white/[0.12] bg-canvas"
+				className="relative h-[600px] w-[800px] touch-none overflow-hidden rounded-2xl border border-canvas-ink/[0.12] bg-canvas"
 				role="application"
 				ref={canvasRef}
 				onPointerDown={handleCanvasPointerDown}

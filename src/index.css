@@ -3,12 +3,57 @@
 :root {
 	--page-background: oklch(0.979 0.002 106.4);
 	--page-text: oklch(0.214 0.004 286.068);
+	--canvas-background: #f4f5f7;
+	--canvas-panel: #ffffff;
+	--canvas-panel-hover: #eef0f4;
+	--canvas-surface: #ffffff;
+	--canvas-key: #eceef2;
+	--canvas-ink: #252932;
+	--canvas-secondary-text: #626a76;
+	--canvas-muted-text: #6d7480;
+	--canvas-accent: #5d70d6;
+	--canvas-accent-contrast: #ffffff;
+	--canvas-accent-text: #4658ad;
+	--canvas-danger: #b33f49;
+	--canvas-danger-active: #982f39;
+	--canvas-danger-soft: rgb(179 63 73 / 10%);
+	--canvas-focus: #5367c8;
+	--canvas-grid-dot: rgb(37 41 50 / 14%);
+	--canvas-key-shadow: inset 0 -1px 0 rgb(37 41 50 / 8%);
+	--canvas-menu-shadow:
+		0 18px 45px rgb(31 36 48 / 16%), 0 2px 8px rgb(31 36 48 / 10%);
+	--canvas-popover-shadow:
+		0 18px 50px rgb(31 36 48 / 16%), 0 2px 8px rgb(31 36 48 / 10%);
+	--canvas-selection-shadow: 0 0 0 4px rgb(93 112 214 / 12%);
+	color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
 		--page-background: oklch(0.214 0.004 286.068);
 		--page-text: oklch(0.979 0.002 106.4);
+		--canvas-background: #111318;
+		--canvas-panel: #1b1d24;
+		--canvas-panel-hover: #222632;
+		--canvas-surface: #22252e;
+		--canvas-key: #252832;
+		--canvas-ink: #ffffff;
+		--canvas-secondary-text: rgb(255 255 255 / 55%);
+		--canvas-muted-text: rgb(255 255 255 / 46%);
+		--canvas-accent: #7c9cff;
+		--canvas-accent-contrast: #101217;
+		--canvas-accent-text: #a8bbff;
+		--canvas-danger: #ff9b9b;
+		--canvas-danger-active: #ffb4b4;
+		--canvas-danger-soft: rgb(255 95 95 / 15%);
+		--canvas-focus: #9db1ff;
+		--canvas-grid-dot: rgb(255 255 255 / 18%);
+		--canvas-key-shadow: inset 0 -1px 0 rgb(255 255 255 / 5%);
+		--canvas-menu-shadow:
+			0 18px 45px rgb(0 0 0 / 40%), 0 2px 8px rgb(0 0 0 / 24%);
+		--canvas-popover-shadow:
+			0 18px 50px rgb(0 0 0 / 38%), 0 2px 8px rgb(0 0 0 / 30%);
+		--canvas-selection-shadow: 0 0 0 4px rgb(124 156 255 / 12%);
 	}
 }
 
@@ -16,11 +61,21 @@
 	--font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
 	--color-page: var(--page-background);
 	--color-page-text: var(--page-text);
-	--color-canvas: #111318;
-	--color-panel: #1b1d24;
-	--color-surface: #22252e;
-	--color-accent: #7c9cff;
-	--color-accent-contrast: #101217;
+	--color-canvas: var(--canvas-background);
+	--color-panel: var(--canvas-panel);
+	--color-panel-hover: var(--canvas-panel-hover);
+	--color-surface: var(--canvas-surface);
+	--color-key: var(--canvas-key);
+	--color-canvas-ink: var(--canvas-ink);
+	--color-canvas-secondary: var(--canvas-secondary-text);
+	--color-canvas-muted: var(--canvas-muted-text);
+	--color-accent: var(--canvas-accent);
+	--color-accent-contrast: var(--canvas-accent-contrast);
+	--color-accent-text: var(--canvas-accent-text);
+	--color-danger: var(--canvas-danger);
+	--color-danger-active: var(--canvas-danger-active);
+	--color-danger-soft: var(--canvas-danger-soft);
+	--color-focus: var(--canvas-focus);
 }
 
 @layer base {

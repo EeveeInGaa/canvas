@@ -39,7 +39,7 @@ export function CanvasGroupFrame({
 	}
 
 	const frameStateClassName = isDropTarget
-		? `border-2 ${isSelected ? 'border-accent/[0.95]' : 'border-white/[0.32]'} bg-accent/[0.05] shadow-[0_0_0_4px_rgba(124,156,255,0.12)]`
+		? `border-2 ${isSelected ? 'border-accent/[0.95]' : 'border-canvas-ink/[0.32]'} bg-accent/[0.05] shadow-[var(--canvas-selection-shadow)]`
 		: isSelected
 			? 'border border-accent/[0.9] bg-transparent shadow-none'
 			: 'border border-accent/[0.45] bg-transparent shadow-none';

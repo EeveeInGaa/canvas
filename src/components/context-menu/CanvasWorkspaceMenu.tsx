@@ -56,7 +56,7 @@ export function CanvasWorkspaceMenu({
 				</ContextMenu.CheckboxItemIndicator>
 			</ContextMenu.CheckboxItem>
 
-			<ContextMenu.Separator className="mx-1 my-[5px] h-px bg-white/10" />
+			<ContextMenu.Separator className="mx-1 my-[5px] h-px bg-canvas-ink/10" />
 
 			<ContextMenu.SubmenuRoot>
 				<ContextMenu.SubmenuTrigger className={MENU_ITEM_CLASS_NAME}>

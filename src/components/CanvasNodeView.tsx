@@ -42,7 +42,9 @@ export function CanvasNodeView({
 	onLinkChange,
 }: CanvasNodeViewProps) {
 	const nodeStateClassName = `${
-		isSelected ? 'border-2 border-accent/[0.95]' : 'border border-white/[0.14]'
+		isSelected
+			? 'border-2 border-accent/[0.95]'
+			: 'border border-canvas-ink/[0.14]'
 	} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${
 		isEditing ? 'select-text' : 'select-none'
 	}`;

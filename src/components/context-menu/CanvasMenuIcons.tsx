@@ -10,7 +10,7 @@ function MenuIcon({
 	return (
 		<span
 			aria-hidden="true"
-			className={`grid size-4 place-items-center [&_svg]:block [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-[1.45] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] ${isDestructive ? 'text-current' : 'text-white/[0.58]'}`}
+			className={`grid size-4 place-items-center [&_svg]:block [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-[1.45] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] ${isDestructive ? 'text-current' : 'text-canvas-ink/[0.58]'}`}
 		>
 			{children}
 		</span>

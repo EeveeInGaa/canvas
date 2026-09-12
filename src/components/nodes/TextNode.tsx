@@ -33,7 +33,7 @@ export function TextNode({
 	if (isEditing) {
 		return (
 			<textarea
-				className="h-full w-full resize-none border-0 bg-transparent p-3 font-[inherit] text-white/[0.9] outline-0"
+				className="h-full w-full resize-none border-0 bg-transparent p-3 font-[inherit] text-canvas-ink/[0.9] outline-0"
 				ref={textareaRef}
 				value={node.text}
 				onChange={handleChange}
@@ -51,7 +51,7 @@ export function TextNode({
 	}
 
 	return (
-		<div className="h-full w-full overflow-hidden p-3 text-white/[0.9] whitespace-pre-wrap [overflow-wrap:anywhere]">
+		<div className="h-full w-full overflow-hidden p-3 text-canvas-ink/[0.9] whitespace-pre-wrap [overflow-wrap:anywhere]">
 			{node.text}
 		</div>
 	);

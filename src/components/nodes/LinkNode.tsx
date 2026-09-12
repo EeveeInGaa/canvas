@@ -63,7 +63,7 @@ export function LinkNode({
 				}}
 			>
 				<input
-					className="w-full border-0 border-white/[0.16] border-b bg-transparent px-0 pt-1 pb-2 font-[inherit] font-semibold text-white/[0.92] outline-0"
+					className="w-full border-0 border-canvas-ink/[0.16] border-b bg-transparent px-0 pt-1 pb-2 font-[inherit] font-semibold text-canvas-ink/[0.92] outline-0"
 					ref={labelInputRef}
 					type="text"
 					value={node.label}
@@ -77,7 +77,7 @@ export function LinkNode({
 				/>
 
 				<input
-					className="w-full border-0 bg-transparent p-0 font-[inherit] text-[13px] text-white/[0.65] outline-0"
+					className="w-full border-0 bg-transparent p-0 font-[inherit] text-[13px] text-canvas-ink/[0.65] outline-0"
 					type="url"
 					value={node.url}
 					placeholder="https://example.com"
@@ -96,7 +96,7 @@ export function LinkNode({
 
 	return (
 		<a
-			className="flex h-full w-full cursor-[inherit] flex-col justify-center gap-1.5 overflow-hidden p-3 text-white/[0.92] no-underline"
+			className="flex h-full w-full cursor-[inherit] flex-col justify-center gap-1.5 overflow-hidden p-3 text-canvas-ink/[0.92] no-underline"
 			href={node.url || undefined}
 			target="_blank"
 			rel="noreferrer"
@@ -111,7 +111,7 @@ export function LinkNode({
 			</strong>
 
 			{node.url && (
-				<span className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-white/[0.55]">
+				<span className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-canvas-secondary">
 					{node.url}
 				</span>
 			)}

@@ -25,7 +25,7 @@ type CanvasSelectionMenuProps = {
 
 function Shortcut({ children }: { children: ReactNode }) {
 	return (
-		<span className="whitespace-nowrap text-[10px] font-medium tracking-[0.01em] text-white/[0.38]">
+		<span className="whitespace-nowrap text-[10px] font-medium tracking-[0.01em] text-canvas-muted">
 			{children}
 		</span>
 	);
@@ -64,7 +64,7 @@ export function CanvasSelectionMenu({
 				</ContextMenu.Item>
 			)}
 
-			<ContextMenu.Separator className="mx-1 my-[5px] h-px bg-white/10" />
+			<ContextMenu.Separator className="mx-1 my-[5px] h-px bg-canvas-ink/10" />
 
 			<ContextMenu.Item
 				className={DESTRUCTIVE_MENU_ITEM_CLASS_NAME}
