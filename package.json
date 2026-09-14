@@ -7,6 +7,9 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"test": "vitest run",
+		"test:all": "pnpm test && pnpm test:e2e",
+		"test:e2e": "playwright test",
+		"test:e2e:ui": "playwright test --ui",
 		"lint": "biome lint .",
 		"lint:fix": "biome lint --write .",
 		"preview": "vite preview",
@@ -22,6 +25,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.14",
+		"@playwright/test": "^1.63.0",
 		"@tailwindcss/vite": "^4.2.4",
 		"@testing-library/jest-dom": "^7.0.1",
 		"@testing-library/react": "^16.3.3",

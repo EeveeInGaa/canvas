@@ -51,6 +51,7 @@ export function CanvasGroupFrame({
 				onElementChange(group.id, element);
 			}}
 			data-group-id={group.id}
+			data-selected={isSelected || undefined}
 			aria-label="Node group"
 			className={`pointer-events-none absolute z-[1] box-border rounded-2xl transition-[border-color,background-color,box-shadow] duration-[120ms] ease-[ease] ${frameStateClassName}`}
 			role="group"

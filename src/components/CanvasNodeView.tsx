@@ -52,6 +52,7 @@ export function CanvasNodeView({
 	return (
 		<div
 			className={`absolute box-border touch-none overflow-hidden rounded-xl bg-surface ${nodeStateClassName}`}
+			data-selected={isSelected || undefined}
 			role="application"
 			ref={(element) => {
 				onElementChange(node.id, element);
