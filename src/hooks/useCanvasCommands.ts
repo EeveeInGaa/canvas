@@ -12,7 +12,12 @@ import type { Viewport } from '@/types/viewport.types';
 import { screenToCanvas } from '@/utils/coordinates';
 import { sanitizeGroups } from '@/utils/document';
 import { createGroupId } from '@/utils/group';
-import { createLinkNode, createTextNode, duplicateNodes } from '@/utils/node';
+import {
+	createLinkNode,
+	createTextNode,
+	duplicateNodes,
+	offsetNodeFromOccupiedPosition,
+} from '@/utils/node';
 
 type UseCanvasCommandsParams = {
 	canvasRef: RefObject<HTMLDivElement | null>;
@@ -54,7 +59,10 @@ export function useCanvasCommands({
 					? createTextNode(position)
 					: createLinkNode(position);
 
-			commitNodes((currentNodes) => [...currentNodes, newNode]);
+			commitNodes((currentNodes) => [
+				...currentNodes,
+				offsetNodeFromOccupiedPosition(newNode, currentNodes),
+			]);
 			setSelectedNodeIds([newNode.id]);
 			setSelectedGroupIds([]);
 			setEditingNodeId(newNode.id);

@@ -26,6 +26,17 @@ async function pressKey(page: Page, key: string, count: number) {
 	}
 }
 
+async function getNodeCenter(node: Locator) {
+	return node.evaluate((element) => ({
+		x:
+			Number.parseFloat((element as HTMLElement).style.left) +
+			Number.parseFloat((element as HTMLElement).style.width) / 2,
+		y:
+			Number.parseFloat((element as HTMLElement).style.top) +
+			Number.parseFloat((element as HTMLElement).style.height) / 2,
+	}));
+}
+
 async function createSeparatedNodes(page: Page) {
 	await createTextNode(page, 'Left node');
 	await pressKey(page, 'Shift+ArrowLeft', 6);
@@ -71,6 +82,25 @@ test('creates and edits a text node', async ({ page }) => {
 
 	await expect(node).toHaveAttribute('data-selected', 'true');
 	await expect(node.locator('textarea')).toHaveCount(0);
+});
+
+test('offsets nodes created at the same canvas position', async ({ page }) => {
+	const nodes = page.locator(nodeSelector);
+
+	await page.getByRole('button', { name: 'Text', exact: true }).click();
+	await expect(nodes).toHaveCount(1);
+	await page.keyboard.press('Escape');
+
+	await page.keyboard.press('l');
+	await expect(nodes).toHaveCount(2);
+
+	const firstCenter = await getNodeCenter(nodes.nth(0));
+	const secondCenter = await getNodeCenter(nodes.nth(1));
+
+	expect(secondCenter).toEqual({
+		x: firstCenter.x + 24,
+		y: firstCenter.y + 24,
+	});
 });
 
 test('replaces all node content with a skeleton below 60% zoom', async ({
