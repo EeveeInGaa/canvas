@@ -25,6 +25,7 @@ To start the application, run `pnpm dev` and open http://localhost:5173/.
 - context menu
 - navigation guidance
 - content becomes skeleton when zoomed out far
+- viewport culling
 
 ## Testing
 

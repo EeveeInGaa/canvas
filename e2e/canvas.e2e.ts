@@ -140,6 +140,32 @@ test('replaces all node content with a skeleton below 60% zoom', async ({
 	await expect(linkNode).toContainText('Project brief');
 });
 
+test('culls nodes outside the viewport and restores them before they enter', async ({
+	page,
+}) => {
+	const node = await createTextNode(page, 'Far away node');
+	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+
+	await pressKey(page, 'Shift+ArrowRight', 40);
+	await expect(node).toHaveCount(0);
+
+	await canvas.dispatchEvent('wheel', { deltaX: 200 });
+	await expect(node).toHaveCount(1);
+
+	const canvasBox = await canvas.boundingBox();
+	const nodeBox = await node.boundingBox();
+
+	if (!canvasBox || !nodeBox) {
+		throw new Error('Canvas and overscanned node must have layout boxes');
+	}
+
+	expect(nodeBox.x).toBeGreaterThan(canvasBox.x + canvasBox.width);
+
+	await canvas.dispatchEvent('wheel', { deltaX: 150 });
+	await expect(node).toContainText('Far away node');
+	await expect(node).toHaveAttribute('data-selected', 'true');
+});
+
 test('selects multiple nodes with a selection box in both directions', async ({
 	page,
 }) => {

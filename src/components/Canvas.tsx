@@ -17,8 +17,15 @@ import { useCanvasSelection } from '@/hooks/useCanvasSelection';
 import { useCanvasTextEditHistory } from '@/hooks/useCanvasTextEditHistory';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import type { Point } from '@/types/geometry.types';
+import { doRectsIntersect } from '@/utils/geometry';
 import { getGridMetrics, SNAP_GRID_SIZE } from '@/utils/grid';
-import { NODE_CONTENT_ZOOM_THRESHOLD } from '@/utils/viewport';
+import {
+	getVisibleCanvasRect,
+	NODE_CONTENT_ZOOM_THRESHOLD,
+} from '@/utils/viewport';
+
+const CANVAS_VIEWPORT_SIZE = { width: 800, height: 600 };
+const VIEWPORT_OVERSCAN_PIXELS = 160;
 
 export function Canvas() {
 	const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -155,6 +162,41 @@ export function Canvas() {
 			}),
 		[nodes, selectedNodeIdSet],
 	);
+	const retainedNodeIdSet = useMemo(() => {
+		const retainedNodeIds = new Set<string>();
+
+		if (editingNodeId !== null) {
+			retainedNodeIds.add(editingNodeId);
+		}
+
+		if (interaction.type === 'dragging') {
+			for (const nodeId of interaction.nodeIds) {
+				retainedNodeIds.add(nodeId);
+			}
+		} else if (interaction.type === 'resizing') {
+			retainedNodeIds.add(interaction.nodeId);
+		}
+
+		return retainedNodeIds;
+	}, [editingNodeId, interaction]);
+	const visibleCanvasRect = useMemo(
+		() =>
+			getVisibleCanvasRect(
+				viewport,
+				CANVAS_VIEWPORT_SIZE,
+				VIEWPORT_OVERSCAN_PIXELS,
+			),
+		[viewport],
+	);
+	const renderedNodes = useMemo(
+		() =>
+			orderedNodes.filter(
+				(node) =>
+					retainedNodeIdSet.has(node.id) ||
+					doRectsIntersect(node, visibleCanvasRect),
+			),
+		[orderedNodes, retainedNodeIdSet, visibleCanvasRect],
+	);
 
 	return (
 		<ContextMenu.Root
@@ -210,7 +252,7 @@ export function Canvas() {
 						/>
 					))}
 
-					{orderedNodes.map((node) => (
+					{renderedNodes.map((node) => (
 						<CanvasNodeView
 							key={node.id}
 							node={node}
