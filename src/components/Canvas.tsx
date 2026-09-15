@@ -54,9 +54,10 @@ export function Canvas() {
 		recordDocumentChange: documentController.recordDocumentChange,
 	});
 
-	const { viewport, setViewport, centerViewportOnOrigin } = useCanvasViewport({
-		canvasRef,
-	});
+	const { viewport, setViewport, centerViewportOnOrigin, setViewportScale } =
+		useCanvasViewport({
+			canvasRef,
+		});
 
 	const commands = useCanvasCommands({
 		canvasRef,
@@ -314,6 +315,7 @@ export function Canvas() {
 					isDebugEnabled={isDebugEnabled}
 					isInfoOpen={isInfoOpen}
 					isSnapEnabled={isSnapEnabled}
+					zoom={viewport.scale}
 					canRedo={documentController.canRedo}
 					canUndo={documentController.canUndo}
 					onCenterViewport={centerViewportOnOrigin}
@@ -322,6 +324,7 @@ export function Canvas() {
 					onToggleDebug={toggleDebug}
 					onToggleSnap={toggleSnap}
 					onUndo={commands.undoDocument}
+					onZoomChange={setViewportScale}
 					onCreateTextNode={commands.createTextNodeAtCanvasCenter}
 					onCreateLinkNode={commands.createLinkNodeAtCanvasCenter}
 				/>

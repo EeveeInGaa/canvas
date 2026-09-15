@@ -1,5 +1,6 @@
 import { CanvasControlsPopover } from '@/components/toolbar/CanvasControlsPopover';
 import { CanvasToolbarButton } from '@/components/toolbar/CanvasToolbarButton';
+import { CanvasZoomPopover } from '@/components/toolbar/CanvasZoomPopover';
 
 type CanvasToolbarProps = {
 	canRedo: boolean;
@@ -7,7 +8,9 @@ type CanvasToolbarProps = {
 	isDebugEnabled: boolean;
 	isInfoOpen: boolean;
 	isSnapEnabled: boolean;
+	zoom: number;
 	onCenterViewport: () => void;
+	onZoomChange: (zoom: number) => void;
 	onRedo: () => void;
 	onToggleDebug: () => void;
 	onInfoOpenChange: (isOpen: boolean) => void;
@@ -23,7 +26,9 @@ export function CanvasToolbar({
 	isDebugEnabled,
 	isInfoOpen,
 	isSnapEnabled,
+	zoom,
 	onCenterViewport,
+	onZoomChange,
 	onRedo,
 	onToggleDebug,
 	onInfoOpenChange,
@@ -35,6 +40,7 @@ export function CanvasToolbar({
 	return (
 		<>
 			<div className="absolute top-3 right-3 z-10 flex gap-2">
+				<CanvasZoomPopover zoom={zoom} onZoomChange={onZoomChange} />
 				<CanvasToolbarButton onClick={onCenterViewport}>
 					Center
 				</CanvasToolbarButton>

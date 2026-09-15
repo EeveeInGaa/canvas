@@ -20,6 +20,7 @@ type UseCanvasViewportResult = {
 	viewport: Viewport;
 	setViewport: Dispatch<SetStateAction<Viewport>>;
 	centerViewportOnOrigin: () => void;
+	setViewportScale: (scale: number) => void;
 };
 
 const INITIAL_SCALE = 1;
@@ -49,8 +50,36 @@ export function useCanvasViewport({
 			...currentViewport,
 			x: canvasRect.width / 2,
 			y: canvasRect.height / 2,
+			scale: INITIAL_SCALE,
 		}));
 	}, [canvasRef]);
+
+	const setViewportScale = useCallback(
+		(scale: number) => {
+			const canvasElement = canvasRef.current;
+
+			if (!canvasElement) {
+				return;
+			}
+
+			const canvasRect = canvasElement.getBoundingClientRect();
+			const centerX = canvasRect.width / 2;
+			const centerY = canvasRect.height / 2;
+			const nextScale = clampScale(scale);
+
+			setViewport((currentViewport) => {
+				const canvasX = (centerX - currentViewport.x) / currentViewport.scale;
+				const canvasY = (centerY - currentViewport.y) / currentViewport.scale;
+
+				return {
+					x: centerX - canvasX * nextScale,
+					y: centerY - canvasY * nextScale,
+					scale: nextScale,
+				};
+			});
+		},
+		[canvasRef],
+	);
 
 	useLayoutEffect(() => {
 		if (hasCenteredInitialViewportRef.current) {
@@ -124,5 +153,6 @@ export function useCanvasViewport({
 		viewport,
 		setViewport,
 		centerViewportOnOrigin,
+		setViewportScale,
 	};
 }

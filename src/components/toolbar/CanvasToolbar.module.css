@@ -21,6 +21,17 @@
 	height: 0;
 }
 
+.sliderThumb::after {
+	position: absolute;
+	inset: -5px;
+	content: "";
+}
+
+.sliderThumb:has(input:focus-visible) {
+	outline: 2px solid var(--canvas-focus);
+	outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.popupMotion,
 	.accordionPanelMotion {

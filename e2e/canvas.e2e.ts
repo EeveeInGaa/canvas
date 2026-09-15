@@ -140,6 +140,28 @@ test('replaces all node content with a skeleton below 60% zoom', async ({
 	await expect(linkNode).toContainText('Project brief');
 });
 
+test('changes zoom in ten-percent steps and resets it with Center', async ({
+	page,
+}) => {
+	const zoomButton = page.getByRole('button', { name: 'Zoom: 100%' });
+
+	await zoomButton.click();
+	const slider = page.getByRole('slider', { name: 'Zoom level' });
+	await expect(slider).toBeVisible();
+
+	await expect(slider).toHaveValue('100');
+	await slider.press('ArrowLeft');
+	await expect(page.getByRole('button', { name: 'Zoom: 90%' })).toBeVisible();
+
+	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+
+	await canvas.dispatchEvent('wheel', { ctrlKey: true, deltaY: -5 });
+	await expect(page.getByRole('button', { name: 'Zoom: 95%' })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Center', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'Zoom: 100%' })).toBeVisible();
+});
+
 test('culls nodes outside the viewport and restores them before they enter', async ({
 	page,
 }) => {
