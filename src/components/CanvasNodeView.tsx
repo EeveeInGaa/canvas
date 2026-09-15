@@ -1,5 +1,6 @@
-import type { PointerEvent } from 'react';
+import { memo, type PointerEvent } from 'react';
 
+import styles from '@/components/CanvasNodeView.module.css';
 import { LinkNode } from '@/components/nodes/LinkNode.tsx';
 import { TextNode } from '@/components/nodes/TextNode.tsx';
 import {
@@ -12,6 +13,7 @@ type CanvasNodeViewProps = {
 	node: CanvasNode;
 	isSelected: boolean;
 	isEditing: boolean;
+	showContent: boolean;
 	isDragging: boolean;
 	onPointerDown: (
 		event: PointerEvent<HTMLDivElement>,
@@ -28,10 +30,11 @@ type CanvasNodeViewProps = {
 	onLinkChange: (nodeId: string, changes: LinkNodeChanges) => void;
 };
 
-export function CanvasNodeView({
+export const CanvasNodeView = memo(function CanvasNodeView({
 	node,
 	isSelected,
 	isEditing,
+	showContent,
 	isDragging,
 	onPointerDown,
 	onResizePointerDown,
@@ -41,29 +44,38 @@ export function CanvasNodeView({
 	onElementChange,
 	onLinkChange,
 }: CanvasNodeViewProps) {
+	const isContentEditing = showContent && isEditing;
+	const nodeDetailClassName = showContent
+		? ''
+		: `${styles.skeleton} ${styles[node.type]}`;
 	const nodeStateClassName = `${
 		isSelected
 			? 'border-2 border-accent/[0.95]'
 			: 'border border-canvas-ink/[0.14]'
 	} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${
-		isEditing ? 'select-text' : 'select-none'
+		isContentEditing ? 'select-text' : 'select-none'
 	}`;
 
 	return (
 		<div
-			className={`absolute box-border touch-none overflow-hidden rounded-xl bg-surface ${nodeStateClassName}`}
+			className={`absolute box-border touch-none overflow-hidden rounded-xl bg-surface ${nodeStateClassName} ${nodeDetailClassName}`}
 			data-selected={isSelected || undefined}
 			role="application"
 			ref={(element) => {
 				onElementChange(node.id, element);
 			}}
 			data-node-id={node.id}
+			data-node-detail={showContent ? 'full' : 'skeleton'}
+			data-node-skeleton={!showContent || undefined}
 			onPointerDown={(event) => {
 				onPointerDown(event, node);
 			}}
 			onDoubleClick={(event) => {
 				event.stopPropagation();
-				onStartEditing(node.id);
+
+				if (showContent) {
+					onStartEditing(node.id);
+				}
 			}}
 			style={{
 				left: node.x,
@@ -72,25 +84,25 @@ export function CanvasNodeView({
 				height: node.height,
 			}}
 		>
-			{node.type === CanvasNodeType.Text && (
+			{showContent && node.type === CanvasNodeType.Text ? (
 				<TextNode
 					node={node}
-					isEditing={isEditing}
+					isEditing={isContentEditing}
 					onChange={onTextChange}
 					onStopEditing={onStopEditing}
 				/>
-			)}
+			) : null}
 
-			{node.type === CanvasNodeType.Link && (
+			{showContent && node.type === CanvasNodeType.Link ? (
 				<LinkNode
 					node={node}
-					isEditing={isEditing}
+					isEditing={isContentEditing}
 					onChange={onLinkChange}
 					onStopEditing={onStopEditing}
 				/>
-			)}
+			) : null}
 
-			{isSelected && !isEditing && (
+			{isSelected && !isContentEditing && (
 				<div
 					aria-hidden="true"
 					className="absolute -right-[13px] -bottom-[13px] flex size-6 touch-none cursor-nwse-resize items-start justify-start"
@@ -103,4 +115,4 @@ export function CanvasNodeView({
 			)}
 		</div>
 	);
-}
+});

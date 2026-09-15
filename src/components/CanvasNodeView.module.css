@@ -1,0 +1,30 @@
+.skeleton {
+	background-repeat: no-repeat;
+}
+
+.text {
+	background-image:
+		linear-gradient(var(--canvas-skeleton) 0 0),
+		linear-gradient(var(--canvas-skeleton) 0 0),
+		linear-gradient(var(--canvas-skeleton) 0 0);
+	background-position:
+		12px 14px,
+		12px 34px,
+		12px 54px;
+	background-size:
+		72% 10px,
+		84% 10px,
+		54% 10px;
+}
+
+.link {
+	background-image:
+		linear-gradient(var(--canvas-skeleton-strong) 0 0),
+		linear-gradient(var(--canvas-skeleton) 0 0);
+	background-position:
+		12px 32px,
+		12px 55px;
+	background-size:
+		58% 13px,
+		76% 9px;
+}

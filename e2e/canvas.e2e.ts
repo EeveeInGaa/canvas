@@ -73,6 +73,43 @@ test('creates and edits a text node', async ({ page }) => {
 	await expect(node.locator('textarea')).toHaveCount(0);
 });
 
+test('replaces all node content with a skeleton below 60% zoom', async ({
+	page,
+}) => {
+	await page.getByRole('button', { name: 'Link', exact: true }).click();
+	const linkNode = page.locator(nodeSelector).first();
+	await linkNode.locator('input').first().fill('Project brief');
+	await linkNode.locator('input').last().fill('https://example.com/brief');
+	await linkNode.locator('input').last().press('Escape');
+
+	await page.getByRole('button', { name: 'Text', exact: true }).click();
+	const textNode = page.locator(nodeSelector).last();
+	const textEditor = textNode.locator('textarea');
+	await textEditor.fill('Release checklist');
+	await expect(textEditor).toBeFocused();
+
+	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+
+	await canvas.dispatchEvent('wheel', { ctrlKey: true, deltaY: 60 });
+
+	await expect(textNode).toHaveAttribute('data-node-detail', 'skeleton');
+	await expect(linkNode).toHaveAttribute('data-node-detail', 'skeleton');
+	await expect(page.locator('[data-node-skeleton]')).toHaveCount(2);
+	await expect(textNode.locator(':scope > *')).toHaveCount(1);
+	await expect(textEditor).toHaveCount(0);
+	await expect(textNode).not.toContainText('Release checklist');
+	await expect(linkNode).not.toContainText('Project brief');
+
+	await canvas.dispatchEvent('wheel', { ctrlKey: true, deltaY: -60 });
+
+	await expect(textNode).toHaveAttribute('data-node-detail', 'full');
+	await expect(linkNode).toHaveAttribute('data-node-detail', 'full');
+	await expect(page.locator('[data-node-skeleton]')).toHaveCount(0);
+	await expect(textNode.locator('textarea')).toHaveCount(0);
+	await expect(textNode).toContainText('Release checklist');
+	await expect(linkNode).toContainText('Project brief');
+});
+
 test('selects multiple nodes with a selection box in both directions', async ({
 	page,
 }) => {

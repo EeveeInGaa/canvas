@@ -24,6 +24,7 @@ To start the application, run `pnpm dev` and open http://localhost:5173/.
 - undo/redo
 - context menu
 - navigation guidance
+- content becomes skeleton when zoomed out far
 
 ## Testing
 
@@ -58,7 +59,6 @@ The Playwright commands start and stop their own Vite development server on
 
 ## Todo
 
-- when zoomed out far, content becomes a skeleton
 - export to PDF option
 - option to add images
 - add fixed sizes for canvas and dynamic resize

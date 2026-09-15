@@ -1,5 +1,5 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { CanvasDebugOverlay } from '@/components/CanvasDebugOverlay';
 import { CanvasGrid } from '@/components/CanvasGrid';
@@ -18,6 +18,7 @@ import { useCanvasTextEditHistory } from '@/hooks/useCanvasTextEditHistory';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import type { Point } from '@/types/geometry.types';
 import { getGridMetrics, SNAP_GRID_SIZE } from '@/utils/grid';
+import { NODE_CONTENT_ZOOM_THRESHOLD } from '@/utils/viewport';
 
 export function Canvas() {
 	const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -64,6 +65,15 @@ export function Canvas() {
 	const [isInfoOpen, setIsInfoOpen] = useState(false);
 
 	const gridMetrics = getGridMetrics({ viewport });
+	const showNodeContent = viewport.scale >= NODE_CONTENT_ZOOM_THRESHOLD;
+
+	useEffect(() => {
+		if (showNodeContent || editingNodeId === null) {
+			return;
+		}
+
+		commands.stopNodeEditing();
+	}, [commands.stopNodeEditing, editingNodeId, showNodeContent]);
 
 	const contextMenu = useCanvasContextMenu({
 		canvasRef,
@@ -209,6 +219,7 @@ export function Canvas() {
 								!selectedGroupNodeIdSet.has(node.id)
 							}
 							isEditing={editingNodeId === node.id}
+							showContent={showNodeContent}
 							isDragging={
 								interaction.type === 'dragging' &&
 								interaction.nodeIds.includes(node.id)
