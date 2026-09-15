@@ -21,7 +21,7 @@ type UseCanvasViewportResult = {
 	viewport: Viewport;
 	setViewport: Dispatch<SetStateAction<Viewport>>;
 	centerViewportOnOrigin: () => void;
-	setViewportScale: (scale: number) => void;
+	setViewportScale: (scale: SetStateAction<number>) => void;
 	fitViewportToBounds: (bounds: Rect) => void;
 };
 
@@ -57,7 +57,7 @@ export function useCanvasViewport({
 	}, [canvasRef]);
 
 	const setViewportScale = useCallback(
-		(scale: number) => {
+		(scale: SetStateAction<number>) => {
 			const canvasElement = canvasRef.current;
 
 			if (!canvasElement) {
@@ -67,9 +67,11 @@ export function useCanvasViewport({
 			const canvasRect = canvasElement.getBoundingClientRect();
 			const centerX = canvasRect.width / 2;
 			const centerY = canvasRect.height / 2;
-			const nextScale = clampScale(scale);
 
 			setViewport((currentViewport) => {
+				const requestedScale =
+					typeof scale === 'function' ? scale(currentViewport.scale) : scale;
+				const nextScale = clampScale(requestedScale);
 				const canvasX = (centerX - currentViewport.x) / currentViewport.scale;
 				const canvasY = (centerY - currentViewport.y) / currentViewport.scale;
 

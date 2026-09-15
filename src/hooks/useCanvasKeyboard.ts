@@ -7,6 +7,8 @@ const ARROW_DIRECTIONS: Partial<Record<string, readonly [number, number]>> = {
 	ArrowLeft: [-1, 0],
 };
 
+const KEYBOARD_ZOOM_STEP = 0.2;
+
 type UseCanvasKeyboardParams = {
 	moveDistance: number;
 	shiftMoveDistance: number;
@@ -20,6 +22,7 @@ type UseCanvasKeyboardParams = {
 	onToggleSnap: () => void;
 	onToggleLockSelection?: () => void;
 	onMoveSelection?: (deltaX: number, deltaY: number) => boolean;
+	onZoomBy: (scaleDelta: number) => void;
 	onGroup?: () => void;
 	onUngroup?: () => void;
 	onUndo?: () => void;
@@ -43,6 +46,7 @@ export function useCanvasKeyboard({
 	onToggleSnap,
 	onToggleLockSelection,
 	onMoveSelection,
+	onZoomBy,
 	onGroup,
 	onUngroup,
 	onUndo,
@@ -60,6 +64,21 @@ export function useCanvasKeyboard({
 					'[data-canvas-shortcuts-dialog], [data-canvas-shortcuts-trigger]',
 				) !== null;
 			const hasCommandModifier = event.metaKey || event.ctrlKey || event.altKey;
+			const hasZoomModifier = event.metaKey || event.ctrlKey;
+
+			if (hasZoomModifier && !event.altKey) {
+				if (key === '+' || key === '=') {
+					event.preventDefault();
+					onZoomBy(KEYBOARD_ZOOM_STEP);
+					return;
+				}
+
+				if (key === '-') {
+					event.preventDefault();
+					onZoomBy(-KEYBOARD_ZOOM_STEP);
+					return;
+				}
+			}
 
 			if (
 				isInShortcutsUi &&
@@ -219,6 +238,7 @@ export function useCanvasKeyboard({
 		onToggleSnap,
 		onUndo,
 		onUngroup,
+		onZoomBy,
 		shiftMoveDistance,
 	]);
 

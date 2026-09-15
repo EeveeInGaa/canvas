@@ -267,6 +267,36 @@ test('changes zoom in ten-percent steps and resets it with Center', async ({
 	await canvas.dispatchEvent('wheel', { ctrlKey: true, deltaY: -5 });
 	await expect(page.getByRole('button', { name: 'Zoom: 95%' })).toBeVisible();
 
+	const zoomInBrowserDefaultPrevented = await page.evaluate(() => {
+		const event = new KeyboardEvent('keydown', {
+			key: '+',
+			metaKey: true,
+			cancelable: true,
+		});
+
+		window.dispatchEvent(event);
+
+		return event.defaultPrevented;
+	});
+
+	expect(zoomInBrowserDefaultPrevented).toBe(true);
+	await expect(page.getByRole('button', { name: 'Zoom: 105%' })).toBeVisible();
+
+	const zoomOutBrowserDefaultPrevented = await page.evaluate(() => {
+		const event = new KeyboardEvent('keydown', {
+			key: '-',
+			metaKey: true,
+			cancelable: true,
+		});
+
+		window.dispatchEvent(event);
+
+		return event.defaultPrevented;
+	});
+
+	expect(zoomOutBrowserDefaultPrevented).toBe(true);
+	await expect(page.getByRole('button', { name: 'Zoom: 95%' })).toBeVisible();
+
 	await page.getByRole('button', { name: 'Center', exact: true }).click();
 	await expect(page.getByRole('button', { name: 'Zoom: 100%' })).toBeVisible();
 });

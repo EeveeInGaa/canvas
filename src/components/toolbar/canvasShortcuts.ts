@@ -28,6 +28,7 @@ export const CANVAS_SHORTCUT_SECTIONS: readonly CanvasShortcutSection[] = [
 		shortcuts: [
 			{ action: 'Pan canvas', keys: ['Space', 'Drag'] },
 			{ action: 'Pan canvas', keys: ['Scroll'] },
+			{ action: 'Zoom in/out', keys: ['Ctrl / ⌘', '+ / -'] },
 			{ action: 'Zoom', keys: ['Ctrl / ⌘', 'Scroll'] },
 			{ action: 'Zoom', keys: ['Pinch'] },
 			{ action: 'Actions', keys: ['Right click'] },

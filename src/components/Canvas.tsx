@@ -151,6 +151,12 @@ export function Canvas() {
 		},
 		[commitPendingTextEdit, setCanvasSpace, setEditingNodeId],
 	);
+	const zoomBy = useCallback(
+		(scaleDelta: number) => {
+			setViewportScale((currentScale) => currentScale + scaleDelta);
+		},
+		[setViewportScale],
+	);
 
 	const { isSpacePressed } = useCanvasKeyboard({
 		moveDistance: isSnapEnabled ? SNAP_GRID_SIZE : 5,
@@ -169,6 +175,7 @@ export function Canvas() {
 		onToggleSnap: toggleSnap,
 		onToggleLockSelection: commands.toggleSelectedElementsLock,
 		onUngroup: commands.ungroupSelectedGroups,
+		onZoomBy: zoomBy,
 	});
 
 	const {
