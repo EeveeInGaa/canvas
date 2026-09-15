@@ -7,8 +7,13 @@ import {
 	CanvasNodeType,
 	type LinkNodeChanges,
 } from '@/types/canvas-node.types';
-import type { Point } from '@/types/geometry.types';
+import type { Point, Rect } from '@/types/geometry.types';
 import type { Viewport } from '@/types/viewport.types';
+import {
+	constrainNodeToBounds,
+	getConstrainedMovementDelta,
+	moveNodesInsideBounds,
+} from '@/utils/canvas-space';
 import { screenToCanvas } from '@/utils/coordinates';
 import { sanitizeGroups } from '@/utils/document';
 import { createGroupId } from '@/utils/group';
@@ -23,6 +28,7 @@ import {
 type UseCanvasCommandsParams = {
 	canvasRef: RefObject<HTMLDivElement | null>;
 	viewport: Viewport;
+	canvasBounds: Rect | null;
 	documentController: CanvasDocumentController;
 	selectionController: CanvasSelectionController;
 	commitPendingTextEdit: () => void;
@@ -31,6 +37,7 @@ type UseCanvasCommandsParams = {
 export function useCanvasCommands({
 	canvasRef,
 	viewport,
+	canvasBounds,
 	documentController,
 	selectionController,
 	commitPendingTextEdit,
@@ -65,15 +72,28 @@ export function useCanvasCommands({
 					? createTextNode(position)
 					: createLinkNode(position);
 
-			commitNodes((currentNodes) => [
-				...currentNodes,
-				offsetNodeFromOccupiedPosition(newNode, currentNodes),
-			]);
+			commitNodes((currentNodes) => {
+				const positionedNode = offsetNodeFromOccupiedPosition(
+					newNode,
+					currentNodes,
+				);
+
+				return [
+					...currentNodes,
+					constrainNodeToBounds(positionedNode, canvasBounds),
+				];
+			});
 			setSelectedNodeIds([newNode.id]);
 			setSelectedGroupIds([]);
 			setEditingNodeId(newNode.id);
 		},
-		[commitNodes, setEditingNodeId, setSelectedGroupIds, setSelectedNodeIds],
+		[
+			canvasBounds,
+			commitNodes,
+			setEditingNodeId,
+			setSelectedGroupIds,
+			setSelectedNodeIds,
+		],
 	);
 
 	const createNodeAtCanvasCenter = useCallback(
@@ -166,7 +186,10 @@ export function useCanvasCommands({
 			return;
 		}
 
-		const duplicatedNodes = duplicateNodes(selectedNodes);
+		const duplicatedNodes = moveNodesInsideBounds(
+			duplicateNodes(selectedNodes),
+			canvasBounds,
+		);
 
 		commitNodes((currentNodes) => [...currentNodes, ...duplicatedNodes]);
 		setSelectedNodeIds(duplicatedNodes.map((node) => node.id));
@@ -174,6 +197,7 @@ export function useCanvasCommands({
 		setEditingNodeId(null);
 	}, [
 		commitNodes,
+		canvasBounds,
 		effectiveSelectedNodeIdSet,
 		nodes,
 		setEditingNodeId,
@@ -194,13 +218,20 @@ export function useCanvasCommands({
 			);
 
 			if (movableNodeIds.size > 0) {
+				const constrainedDelta = getConstrainedMovementDelta(
+					nodes,
+					movableNodeIds,
+					{ x: deltaX, y: deltaY },
+					canvasBounds,
+				);
+
 				commitNodes((currentNodes) =>
 					currentNodes.map((node) =>
 						movableNodeIds.has(node.id)
 							? {
 									...node,
-									x: node.x + deltaX,
-									y: node.y + deltaY,
+									x: node.x + constrainedDelta.x,
+									y: node.y + constrainedDelta.y,
 								}
 							: node,
 					),
@@ -209,7 +240,13 @@ export function useCanvasCommands({
 
 			return true;
 		},
-		[commitNodes, effectiveSelectedNodeIdSet, lockedNodeIdSet],
+		[
+			canvasBounds,
+			commitNodes,
+			effectiveSelectedNodeIdSet,
+			lockedNodeIdSet,
+			nodes,
+		],
 	);
 
 	const groupSelectedNodes = useCallback(() => {
@@ -245,6 +282,7 @@ export function useCanvasCommands({
 			);
 
 			return {
+				...currentDocument,
 				nodes: currentDocument.nodes,
 				groups: [...remainingGroups, newGroup],
 			};
@@ -285,6 +323,7 @@ export function useCanvasCommands({
 			);
 
 			return {
+				...currentDocument,
 				nodes: currentDocument.nodes.map((node) =>
 					nodeIdsFromLockedGroups.has(node.id)
 						? { ...node, isLocked: true }
@@ -327,6 +366,7 @@ export function useCanvasCommands({
 		].every(Boolean);
 
 		commitDocument((currentDocument) => ({
+			...currentDocument,
 			nodes: currentDocument.nodes.map((node) =>
 				selectedNodeIdSet.has(node.id)
 					? { ...node, isLocked: shouldLock }

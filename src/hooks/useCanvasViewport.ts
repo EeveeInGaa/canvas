@@ -9,6 +9,7 @@ import {
 	useState,
 } from 'react';
 
+import type { Rect } from '@/types/geometry.types';
 import type { Viewport } from '@/types/viewport.types.ts';
 import { clampScale } from '@/utils/viewport.ts';
 
@@ -21,6 +22,7 @@ type UseCanvasViewportResult = {
 	setViewport: Dispatch<SetStateAction<Viewport>>;
 	centerViewportOnOrigin: () => void;
 	setViewportScale: (scale: number) => void;
+	fitViewportToBounds: (bounds: Rect) => void;
 };
 
 const INITIAL_SCALE = 1;
@@ -76,6 +78,32 @@ export function useCanvasViewport({
 					y: centerY - canvasY * nextScale,
 					scale: nextScale,
 				};
+			});
+		},
+		[canvasRef],
+	);
+
+	const fitViewportToBounds = useCallback(
+		(bounds: Rect) => {
+			const canvasElement = canvasRef.current;
+
+			if (!canvasElement) {
+				return;
+			}
+
+			const canvasRect = canvasElement.getBoundingClientRect();
+			const padding = 48;
+			const scale = clampScale(
+				Math.min(
+					(canvasRect.width - padding * 2) / bounds.width,
+					(canvasRect.height - padding * 2) / bounds.height,
+				),
+			);
+
+			setViewport({
+				x: canvasRect.width / 2 - (bounds.x + bounds.width / 2) * scale,
+				y: canvasRect.height / 2 - (bounds.y + bounds.height / 2) * scale,
+				scale,
 			});
 		},
 		[canvasRef],
@@ -154,5 +182,6 @@ export function useCanvasViewport({
 		setViewport,
 		centerViewportOnOrigin,
 		setViewportScale,
+		fitViewportToBounds,
 	};
 }

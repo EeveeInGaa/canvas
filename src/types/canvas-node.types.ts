@@ -1,3 +1,4 @@
+import type { CanvasSpace } from '@/types/canvas-space.types';
 import type { Rect } from '@/types/geometry.types.ts';
 
 export const CanvasNodeType = {
@@ -35,6 +36,7 @@ export type CanvasGroup = {
 };
 
 export type CanvasDocument = {
+	canvasSpace: CanvasSpace;
 	nodes: CanvasNode[];
 	groups: CanvasGroup[];
 };

@@ -65,9 +65,45 @@ async function dragWithinCanvas(
 }
 
 async function selectBothNodes(page: Page) {
-	await dragWithinCanvas(page, { x: 150, y: 220 }, { x: 650, y: 380 });
+	const { start, end } = await getSelectionPoints(page);
+
+	await dragWithinCanvas(page, start, end);
 	await page.mouse.up();
 	await expect(page.locator(selectedNodeSelector)).toHaveCount(2);
+}
+
+async function getSelectionPoints(page: Page) {
+	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+	const canvasBox = await canvas.boundingBox();
+	const nodeBoxes = await page.locator(nodeSelector).evaluateAll((elements) =>
+		elements.map((element) => {
+			const rect = element.getBoundingClientRect();
+
+			return {
+				left: rect.left,
+				top: rect.top,
+				right: rect.right,
+				bottom: rect.bottom,
+			};
+		}),
+	);
+
+	if (!canvasBox || nodeBoxes.length === 0) {
+		throw new Error('Canvas and nodes must have layout boxes');
+	}
+
+	const margin = 20;
+
+	return {
+		start: {
+			x: Math.min(...nodeBoxes.map((box) => box.left)) - canvasBox.x - margin,
+			y: Math.min(...nodeBoxes.map((box) => box.top)) - canvasBox.y - margin,
+		},
+		end: {
+			x: Math.max(...nodeBoxes.map((box) => box.right)) - canvasBox.x + margin,
+			y: Math.max(...nodeBoxes.map((box) => box.bottom)) - canvasBox.y + margin,
+		},
+	};
 }
 
 test.beforeEach(async ({ page }) => {
@@ -82,6 +118,45 @@ test('creates and edits a text node', async ({ page }) => {
 
 	await expect(node).toHaveAttribute('data-selected', 'true');
 	await expect(node.locator('textarea')).toHaveCount(0);
+});
+
+test('fills the viewport without moving the camera or existing nodes on resize', async ({
+	page,
+}) => {
+	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+	const node = await createTextNode(page, 'Stable position');
+	const viewportLayer = page.locator('[data-canvas-viewport]');
+	const initialCanvasBox = await canvas.boundingBox();
+	const initialNodeBox = await node.boundingBox();
+	const initialTransform = await viewportLayer.evaluate(
+		(element) => (element as HTMLElement).style.transform,
+	);
+
+	if (!initialCanvasBox || !initialNodeBox) {
+		throw new Error('Canvas and node must have layout boxes');
+	}
+
+	expect(initialCanvasBox).toMatchObject({
+		x: 0,
+		y: 0,
+		width: 1280,
+		height: 720,
+	});
+
+	await page.setViewportSize({ width: 1000, height: 650 });
+
+	await expect
+		.poll(() => canvas.boundingBox())
+		.toMatchObject({ x: 0, y: 0, width: 1000, height: 650 });
+	expect(await node.boundingBox()).toMatchObject({
+		x: initialNodeBox.x,
+		y: initialNodeBox.y,
+	});
+	expect(
+		await viewportLayer.evaluate(
+			(element) => (element as HTMLElement).style.transform,
+		),
+	).toBe(initialTransform);
 });
 
 test('offsets nodes created at the same canvas position', async ({ page }) => {
@@ -162,13 +237,24 @@ test('changes zoom in ten-percent steps and resets it with Center', async ({
 	await expect(page.getByRole('button', { name: 'Zoom: 100%' })).toBeVisible();
 });
 
+test('undoes and redoes a bounded canvas size', async ({ page }) => {
+	await page.getByLabel('Canvas size').selectOption('a4');
+	await expect(page.getByTestId('canvas-surface')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
+	await expect(page.getByTestId('canvas-surface')).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Redo', exact: true }).click();
+	await expect(page.getByTestId('canvas-surface')).toBeVisible();
+});
+
 test('culls nodes outside the viewport and restores them before they enter', async ({
 	page,
 }) => {
 	const node = await createTextNode(page, 'Far away node');
 	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
 
-	await pressKey(page, 'Shift+ArrowRight', 40);
+	await pressKey(page, 'Shift+ArrowRight', 50);
 	await expect(node).toHaveCount(0);
 
 	await canvas.dispatchEvent('wheel', { deltaX: 200 });
@@ -192,13 +278,14 @@ test('selects multiple nodes with a selection box in both directions', async ({
 	page,
 }) => {
 	await createSeparatedNodes(page);
+	const { start, end } = await getSelectionPoints(page);
 
-	await dragWithinCanvas(page, { x: 150, y: 220 }, { x: 650, y: 380 });
+	await dragWithinCanvas(page, start, end);
 	await expect(page.getByTestId('canvas-selection-box')).toBeVisible();
 	await page.mouse.up();
 	await expect(page.locator(selectedNodeSelector)).toHaveCount(2);
 
-	await dragWithinCanvas(page, { x: 650, y: 380 }, { x: 150, y: 220 });
+	await dragWithinCanvas(page, end, start);
 	await expect(page.getByTestId('canvas-selection-box')).toBeVisible();
 	await page.mouse.up();
 	await expect(page.locator(selectedNodeSelector)).toHaveCount(2);
@@ -240,6 +327,72 @@ test('moves a selected node by dragging it', async ({ page }) => {
 			node.evaluate((element) => Number.parseFloat(element.style.top)),
 		)
 		.toBe(startTop + 60);
+});
+
+test('keeps moved and resized nodes inside a bounded canvas', async ({
+	page,
+}) => {
+	await page.getByLabel('Canvas size').selectOption('letter');
+	await page.getByLabel('Canvas orientation').selectOption('landscape');
+	await page.getByRole('button', { name: 'Fit', exact: true }).click();
+
+	const surface = page.getByTestId('canvas-surface');
+	const movedNode = await createTextNode(page, 'Keep inside');
+	const surfaceBox = await surface.boundingBox();
+	const movedNodeBox = await movedNode.boundingBox();
+
+	if (!surfaceBox || !movedNodeBox) {
+		throw new Error('Bounded canvas and node must have layout boxes');
+	}
+
+	await page.mouse.move(
+		movedNodeBox.x + movedNodeBox.width / 2,
+		movedNodeBox.y + movedNodeBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(surfaceBox.x + surfaceBox.width + 500, movedNodeBox.y, {
+		steps: 5,
+	});
+	await page.mouse.up();
+
+	const constrainedNodeBox = await movedNode.boundingBox();
+	expect(
+		(constrainedNodeBox?.x ?? 0) + (constrainedNodeBox?.width ?? 0),
+	).toBeCloseTo(surfaceBox.x + surfaceBox.width, 0);
+
+	await page.keyboard.press('ArrowRight');
+	const keyboardMovedNodeBox = await movedNode.boundingBox();
+	expect(
+		(keyboardMovedNodeBox?.x ?? 0) + (keyboardMovedNodeBox?.width ?? 0),
+	).toBeCloseTo(surfaceBox.x + surfaceBox.width, 0);
+
+	const resizedNode = await createTextNode(page, 'Resize inside');
+	const resizeHandle = resizedNode.locator('[data-resize-handle]');
+	const handleBox = await resizeHandle.boundingBox();
+
+	if (!handleBox) {
+		throw new Error('Resize handle must have a layout box');
+	}
+
+	await page.mouse.move(
+		handleBox.x + handleBox.width / 2,
+		handleBox.y + handleBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(
+		surfaceBox.x + surfaceBox.width + 500,
+		surfaceBox.y + surfaceBox.height + 500,
+		{ steps: 5 },
+	);
+	await page.mouse.up();
+
+	const resizedNodeBox = await resizedNode.boundingBox();
+	expect(
+		(resizedNodeBox?.x ?? 0) + (resizedNodeBox?.width ?? 0),
+	).toBeLessThanOrEqual(surfaceBox.x + surfaceBox.width + 1);
+	expect(
+		(resizedNodeBox?.y ?? 0) + (resizedNodeBox?.height ?? 0),
+	).toBeLessThanOrEqual(surfaceBox.y + surfaceBox.height + 1);
 });
 
 test('locks and unlocks a node from the context menu', async ({ page }) => {

@@ -6,6 +6,7 @@ import { CanvasGrid } from '@/components/CanvasGrid';
 import { CanvasGroupFrame } from '@/components/CanvasGroupFrame';
 import { CanvasNodeView } from '@/components/CanvasNodeView';
 import { CanvasSelectionBox } from '@/components/CanvasSelectionBox';
+import { CanvasSurface } from '@/components/CanvasSurface';
 import { CanvasContextMenu } from '@/components/context-menu/CanvasContextMenu';
 import { CanvasToolbar } from '@/components/toolbar/CanvasToolbar';
 import { useCanvasCommands } from '@/hooks/useCanvasCommands';
@@ -16,7 +17,10 @@ import { useCanvasKeyboard } from '@/hooks/useCanvasKeyboard';
 import { useCanvasSelection } from '@/hooks/useCanvasSelection';
 import { useCanvasTextEditHistory } from '@/hooks/useCanvasTextEditHistory';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
+import { useCanvasViewportSize } from '@/hooks/useCanvasViewportSize';
+import type { CanvasSpace } from '@/types/canvas-space.types';
 import type { Point } from '@/types/geometry.types';
+import { canNodesFitCanvas, getCanvasBounds } from '@/utils/canvas-space';
 import { getCanvasDebugStats } from '@/utils/debug';
 import { doRectsIntersect } from '@/utils/geometry';
 import { getGridMetrics, SNAP_GRID_SIZE } from '@/utils/grid';
@@ -26,14 +30,19 @@ import {
 	NODE_CONTENT_ZOOM_THRESHOLD,
 } from '@/utils/viewport';
 
-const CANVAS_VIEWPORT_SIZE = { width: 800, height: 600 };
 const VIEWPORT_OVERSCAN_PIXELS = 160;
 
 export function Canvas() {
 	const canvasRef = useRef<HTMLDivElement | null>(null);
+	const canvasViewportSize = useCanvasViewportSize(canvasRef);
 
 	const documentController = useCanvasDocument();
-	const { canvasDocument, nodes, groups } = documentController;
+	const { canvasDocument, canvasSpace, nodes, groups, setCanvasSpace } =
+		documentController;
+	const canvasBounds = useMemo(
+		() => getCanvasBounds(canvasSpace),
+		[canvasSpace],
+	);
 
 	const selectionController = useCanvasSelection({ nodes, groups });
 	const {
@@ -55,14 +64,18 @@ export function Canvas() {
 		recordDocumentChange: documentController.recordDocumentChange,
 	});
 
-	const { viewport, setViewport, centerViewportOnOrigin, setViewportScale } =
-		useCanvasViewport({
-			canvasRef,
-		});
+	const {
+		viewport,
+		setViewport,
+		centerViewportOnOrigin,
+		setViewportScale,
+		fitViewportToBounds,
+	} = useCanvasViewport({ canvasRef });
 
 	const commands = useCanvasCommands({
 		canvasRef,
 		viewport,
+		canvasBounds,
 		documentController,
 		selectionController,
 		commitPendingTextEdit,
@@ -121,6 +134,23 @@ export function Canvas() {
 	const toggleSnap = useCallback(() => {
 		setIsSnapEnabled((currentValue) => !currentValue);
 	}, []);
+	const isCanvasSpaceAvailable = useCallback(
+		(space: CanvasSpace) => canNodesFitCanvas(nodes, space),
+		[nodes],
+	);
+	const fitCanvas = useCallback(() => {
+		if (canvasBounds) {
+			fitViewportToBounds(canvasBounds);
+		}
+	}, [canvasBounds, fitViewportToBounds]);
+	const changeCanvasSpace = useCallback(
+		(space: CanvasSpace) => {
+			commitPendingTextEdit();
+			setEditingNodeId(null);
+			setCanvasSpace(space);
+		},
+		[commitPendingTextEdit, setCanvasSpace, setEditingNodeId],
+	);
 
 	const { isSpacePressed } = useCanvasKeyboard({
 		moveDistance: isSnapEnabled ? SNAP_GRID_SIZE : 5,
@@ -156,6 +186,8 @@ export function Canvas() {
 		handleResizePointerDown,
 	} = useCanvasInteractions({
 		canvasRef,
+		canvasDocument,
+		canvasBounds,
 		groups,
 		nodes,
 		selectedNodeIds,
@@ -203,17 +235,17 @@ export function Canvas() {
 		return retainedNodeIds;
 	}, [editingNodeId, interaction]);
 	const viewportCanvasRect = useMemo(
-		() => getVisibleCanvasRect(viewport, CANVAS_VIEWPORT_SIZE),
-		[viewport],
+		() => getVisibleCanvasRect(viewport, canvasViewportSize),
+		[canvasViewportSize, viewport],
 	);
 	const renderingCanvasRect = useMemo(
 		() =>
 			getVisibleCanvasRect(
 				viewport,
-				CANVAS_VIEWPORT_SIZE,
+				canvasViewportSize,
 				VIEWPORT_OVERSCAN_PIXELS,
 			),
-		[viewport],
+		[canvasViewportSize, viewport],
 	);
 	const renderedNodes = useMemo(
 		() =>
@@ -258,7 +290,8 @@ export function Canvas() {
 		>
 			<ContextMenu.Trigger
 				aria-label="Canvas workspace"
-				className="relative h-[600px] w-[800px] touch-none overflow-hidden rounded-2xl border border-canvas-ink/[0.12] bg-canvas"
+				className="relative size-full touch-none overflow-hidden bg-canvas"
+				data-canvas-space={canvasSpace.kind}
 				role="application"
 				ref={canvasRef}
 				onPointerDown={handleCanvasPointerDown}
@@ -277,18 +310,27 @@ export function Canvas() {
 						: 'crosshair',
 				}}
 			>
-				<CanvasGrid
-					visibleGridSize={gridMetrics.visibleGridSize}
-					offsetX={gridMetrics.offsetX}
-					offsetY={gridMetrics.offsetY}
-				/>
+				{canvasBounds ? null : (
+					<CanvasGrid
+						visibleGridSize={gridMetrics.visibleGridSize}
+						offsetX={gridMetrics.offsetX}
+						offsetY={gridMetrics.offsetY}
+					/>
+				)}
 
 				<div
 					className="absolute left-0 top-0 origin-top-left"
+					data-canvas-viewport
 					style={{
 						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
 					}}
 				>
+					{canvasBounds ? (
+						<CanvasSurface
+							bounds={canvasBounds}
+							gridSize={gridMetrics.canvasGridSize}
+						/>
+					) : null}
 					{groups.map((group) => (
 						<CanvasGroupFrame
 							key={group.id}
@@ -334,6 +376,7 @@ export function Canvas() {
 				</div>
 
 				<CanvasToolbar
+					canvasSpace={canvasSpace}
 					isDebugEnabled={isDebugEnabled}
 					isInfoOpen={isInfoOpen}
 					isSnapEnabled={isSnapEnabled}
@@ -341,6 +384,9 @@ export function Canvas() {
 					canRedo={documentController.canRedo}
 					canUndo={documentController.canUndo}
 					onCenterViewport={centerViewportOnOrigin}
+					onCanvasSpaceChange={changeCanvasSpace}
+					onFitCanvas={fitCanvas}
+					isCanvasSpaceAvailable={isCanvasSpaceAvailable}
 					onInfoOpenChange={setIsInfoOpen}
 					onRedo={commands.redoDocument}
 					onToggleDebug={toggleDebug}

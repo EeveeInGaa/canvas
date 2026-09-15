@@ -83,7 +83,16 @@ export function areCanvasDocumentsEqual(
 	leftDocument: CanvasDocument,
 	rightDocument: CanvasDocument,
 ): boolean {
+	const spacesAreEqual =
+		leftDocument.canvasSpace.kind === rightDocument.canvasSpace.kind &&
+		(leftDocument.canvasSpace.kind === 'infinite' ||
+			(rightDocument.canvasSpace.kind === 'bounded' &&
+				leftDocument.canvasSpace.preset === rightDocument.canvasSpace.preset &&
+				leftDocument.canvasSpace.orientation ===
+					rightDocument.canvasSpace.orientation));
+
 	return (
+		spacesAreEqual &&
 		areCanvasNodesEqual(leftDocument.nodes, rightDocument.nodes) &&
 		areCanvasGroupsEqual(leftDocument.groups, rightDocument.groups)
 	);

@@ -26,6 +26,8 @@ import { createRectFromPoints } from '@/utils/geometry';
 
 type UseCanvasInteractionsParams = {
 	canvasRef: RefObject<HTMLDivElement | null>;
+	canvasDocument: CanvasDocument;
+	canvasBounds: Rect | null;
 	groups: CanvasGroup[];
 	nodes: CanvasNode[];
 	selectedNodeIds: string[];
@@ -74,6 +76,8 @@ type UseCanvasInteractionsResult = {
 
 export function useCanvasInteractions({
 	canvasRef,
+	canvasDocument,
+	canvasBounds,
 	groups,
 	nodes,
 	selectedNodeIds,
@@ -136,6 +140,7 @@ export function useCanvasInteractions({
 	}, [interaction]);
 
 	const interactionStart = useCanvasInteractionStart({
+		canvasDocument,
 		groups,
 		nodes,
 		selectedNodeIds,
@@ -157,6 +162,7 @@ export function useCanvasInteractions({
 		viewport,
 		isSnapEnabled,
 		gridSize,
+		canvasBounds,
 		getCanvasPosition,
 		dragPreview,
 		setInteraction,

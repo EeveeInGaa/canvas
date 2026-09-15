@@ -3,7 +3,9 @@ import type {
 	CanvasGroup,
 	CanvasNode,
 } from '@/types/canvas-node.types';
+import type { Point, Rect } from '@/types/geometry.types';
 import type { InteractionState } from '@/types/interaction.types';
+import { getConstrainedMovementDelta } from '@/utils/canvas-space';
 import { snapValueToGrid } from '@/utils/grid';
 import { findGroupDropTarget } from '@/utils/group';
 
@@ -25,6 +27,8 @@ type GetDraggedNodePositionsParams = {
 	viewportScale: number;
 	isSnapEnabled: boolean;
 	gridSize: number;
+	nodes: CanvasNode[];
+	canvasBounds: Rect | null;
 };
 
 export function getNodePositions(
@@ -45,6 +49,8 @@ export function getDraggedNodePositions({
 	viewportScale,
 	isSnapEnabled,
 	gridSize,
+	nodes,
+	canvasBounds,
 }: GetDraggedNodePositionsParams): NodePosition[] {
 	const deltaX = (clientX - interaction.startPointerX) / viewportScale;
 	const deltaY = (clientY - interaction.startPointerY) / viewportScale;
@@ -61,10 +67,17 @@ export function getDraggedNodePositions({
 		? snapValueToGrid(selectionStartY + deltaY, gridSize) - selectionStartY
 		: deltaY;
 
+	const constrainedDelta: Point = getConstrainedMovementDelta(
+		nodes,
+		new Set(interaction.nodeIds),
+		{ x: snappedDeltaX, y: snappedDeltaY },
+		canvasBounds,
+	);
+
 	return interaction.startNodePositions.map((position) => ({
 		nodeId: position.nodeId,
-		x: position.x + snappedDeltaX,
-		y: position.y + snappedDeltaY,
+		x: position.x + constrainedDelta.x,
+		y: position.y + constrainedDelta.y,
 	}));
 }
 
@@ -126,14 +139,14 @@ export function applyDraggedNodePositions(
 	}
 
 	if (interaction.dragSource !== 'node' || interaction.nodeIds.length !== 1) {
-		return { nodes: nextNodes, groups: canvasDocument.groups };
+		return { ...canvasDocument, nodes: nextNodes };
 	}
 
 	const draggedNodeId = interaction.nodeIds[0];
 	const draggedNode = nextNodes.find((node) => node.id === draggedNodeId);
 
 	if (!draggedNode) {
-		return { nodes: nextNodes, groups: canvasDocument.groups };
+		return { ...canvasDocument, nodes: nextNodes };
 	}
 
 	const targetGroup = findGroupDropTarget(
@@ -143,7 +156,7 @@ export function applyDraggedNodePositions(
 	);
 
 	if (!targetGroup) {
-		return { nodes: nextNodes, groups: canvasDocument.groups };
+		return { ...canvasDocument, nodes: nextNodes };
 	}
 
 	const nextGroups = canvasDocument.groups.map((group) => {
@@ -157,6 +170,7 @@ export function applyDraggedNodePositions(
 	});
 
 	return {
+		...canvasDocument,
 		nodes: nextNodes,
 		groups: nextGroups.filter((group) => group.nodeIds.length >= 2),
 	};

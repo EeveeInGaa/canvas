@@ -2,9 +2,12 @@ import { type SetStateAction, useCallback } from 'react';
 
 import { useCanvasHistory } from '@/hooks/useCanvasHistory';
 import type { CanvasDocument, CanvasNode } from '@/types/canvas-node.types';
+import type { CanvasSpace } from '@/types/canvas-space.types';
+import { canNodesFitCanvas, INFINITE_CANVAS_SPACE } from '@/utils/canvas-space';
 import { sanitizeGroups } from '@/utils/document';
 
 const INITIAL_CANVAS_DOCUMENT: CanvasDocument = {
+	canvasSpace: INFINITE_CANVAS_SPACE,
 	nodes: [],
 	groups: [],
 };
@@ -28,6 +31,7 @@ export function useCanvasDocument() {
 					typeof value === 'function' ? value(currentDocument.nodes) : value;
 
 				return {
+					...currentDocument,
 					nodes: nextNodes,
 					groups: sanitizeGroups(currentDocument.groups, nextNodes),
 				};
@@ -43,6 +47,7 @@ export function useCanvasDocument() {
 					typeof value === 'function' ? value(currentDocument.nodes) : value;
 
 				return {
+					...currentDocument,
 					nodes: nextNodes,
 					groups: sanitizeGroups(currentDocument.groups, nextNodes),
 				};
@@ -50,14 +55,26 @@ export function useCanvasDocument() {
 		},
 		[replaceDocument],
 	);
+	const setCanvasSpace = useCallback(
+		(canvasSpace: CanvasSpace) => {
+			commitDocument((currentDocument) =>
+				canNodesFitCanvas(currentDocument.nodes, canvasSpace)
+					? { ...currentDocument, canvasSpace }
+					: currentDocument,
+			);
+		},
+		[commitDocument],
+	);
 
 	return {
 		canvasDocument,
+		canvasSpace: canvasDocument.canvasSpace,
 		nodes: canvasDocument.nodes,
 		groups: canvasDocument.groups,
 		commitDocument,
 		commitNodes,
 		replaceNodes,
+		setCanvasSpace,
 		recordDocumentChange,
 		undo,
 		redo,

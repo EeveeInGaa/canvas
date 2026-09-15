@@ -120,6 +120,7 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 				<div
 					aria-hidden="true"
 					className="absolute -right-[13px] -bottom-[13px] flex size-6 touch-none cursor-nwse-resize items-start justify-start"
+					data-resize-handle
 					onPointerDown={(event) => {
 						onResizePointerDown(event, node);
 					}}

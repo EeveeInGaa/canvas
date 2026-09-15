@@ -7,7 +7,7 @@ import {
 
 import type { CanvasDragPreview } from '@/hooks/interactions/useCanvasDragPreview';
 import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types';
-import type { Point } from '@/types/geometry.types';
+import type { Point, Rect } from '@/types/geometry.types';
 import type { InteractionState } from '@/types/interaction.types';
 import type { Viewport } from '@/types/viewport.types';
 import { getDraggedNodePositions, getDropTargetGroupId } from '@/utils/drag';
@@ -23,6 +23,7 @@ type UseCanvasInteractionMoveParams = {
 	viewport: Viewport;
 	isSnapEnabled: boolean;
 	gridSize: number;
+	canvasBounds: Rect | null;
 	getCanvasPosition: (clientX: number, clientY: number) => Point | null;
 	dragPreview: CanvasDragPreview;
 	setInteraction: Dispatch<SetStateAction<InteractionState>>;
@@ -41,6 +42,7 @@ export function useCanvasInteractionMove({
 	viewport,
 	isSnapEnabled,
 	gridSize,
+	canvasBounds,
 	getCanvasPosition,
 	dragPreview,
 	setInteraction,
@@ -103,6 +105,8 @@ export function useCanvasInteractionMove({
 					viewportScale: viewport.scale,
 					isSnapEnabled,
 					gridSize,
+					nodes,
+					canvasBounds,
 				});
 
 				setDropTargetGroupId(
@@ -118,12 +122,24 @@ export function useCanvasInteractionMove({
 				(event.clientY - interaction.startPointerY) / viewport.scale;
 			const rawWidth = clampNodeSize(interaction.startWidth + deltaWidth);
 			const rawHeight = clampNodeSize(interaction.startHeight + deltaHeight);
-			const width = isSnapEnabled
+			let width = isSnapEnabled
 				? clampNodeSize(snapValueToGrid(rawWidth, gridSize))
 				: rawWidth;
-			const height = isSnapEnabled
+			let height = isSnapEnabled
 				? clampNodeSize(snapValueToGrid(rawHeight, gridSize))
 				: rawHeight;
+			const resizedNode = nodes.find((node) => node.id === interaction.nodeId);
+
+			if (canvasBounds && resizedNode) {
+				width = Math.min(
+					width,
+					canvasBounds.x + canvasBounds.width - resizedNode.x,
+				);
+				height = Math.min(
+					height,
+					canvasBounds.y + canvasBounds.height - resizedNode.y,
+				);
+			}
 
 			setNodes((currentNodes) => {
 				let didChange = false;
@@ -143,6 +159,7 @@ export function useCanvasInteractionMove({
 			});
 		},
 		[
+			canvasBounds,
 			dragPreview.schedulePreview,
 			getCanvasPosition,
 			gridSize,

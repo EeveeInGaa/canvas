@@ -92,7 +92,13 @@
 }
 
 @layer base {
+	html,
+	body,
+	#root {
+		@apply size-full overflow-hidden;
+	}
+
 	body {
-		@apply min-h-svh bg-page font-sans text-page-text;
+		@apply bg-page font-sans text-page-text;
 	}
 }

@@ -27,6 +27,8 @@ To start the application, run `pnpm dev` and open http://localhost:5173/.
 - navigation guidance
 - content becomes skeleton when zoomed out far
 - viewport culling
+- responsive full-viewport canvas
+- bounded A4, A5, and Letter canvas sizes
 
 ## Testing
 
@@ -61,6 +63,5 @@ The Playwright commands start and stop their own Vite development server on
 
 ## Todo
 
-1. add fixed sizes for canvas and dynamic resize 
-2. option to add images
-3. export to PDF option 
+1. option to add images
+2. export to PDF option
