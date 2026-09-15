@@ -1,4 +1,5 @@
 import { ContextMenu } from '@base-ui/react/context-menu';
+import { Lock, LockOpen } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import {
@@ -16,10 +17,12 @@ import {
 type CanvasSelectionMenuProps = {
 	canGroup: boolean;
 	canUngroup: boolean;
+	isSelectionLocked: boolean;
 	selectionCount: number;
 	onDelete: () => void;
 	onDuplicate: () => void;
 	onGroup: () => void;
+	onToggleLock: () => void;
 	onUngroup: () => void;
 };
 
@@ -34,10 +37,12 @@ function Shortcut({ children }: { children: ReactNode }) {
 export function CanvasSelectionMenu({
 	canGroup,
 	canUngroup,
+	isSelectionLocked,
 	selectionCount,
 	onDelete,
 	onDuplicate,
 	onGroup,
+	onToggleLock,
 	onUngroup,
 }: CanvasSelectionMenuProps) {
 	return (
@@ -63,6 +68,26 @@ export function CanvasSelectionMenu({
 					<Shortcut>⇧ Ctrl/⌘ G</Shortcut>
 				</ContextMenu.Item>
 			)}
+
+			<ContextMenu.Item className={MENU_ITEM_CLASS_NAME} onClick={onToggleLock}>
+				{isSelectionLocked ? (
+					<LockOpen
+						aria-hidden="true"
+						className="size-4 text-canvas-ink/[0.58]"
+						strokeWidth={1.45}
+					/>
+				) : (
+					<Lock
+						aria-hidden="true"
+						className="size-4 text-canvas-ink/[0.58]"
+						strokeWidth={1.45}
+					/>
+				)}
+				<span className={MENU_LABEL_CLASS_NAME}>
+					{isSelectionLocked ? 'Unlock selection' : 'Lock selection'}
+				</span>
+				<Shortcut>⇧ Ctrl/⌘ L</Shortcut>
+			</ContextMenu.Item>
 
 			<ContextMenu.Separator className="mx-1 my-[5px] h-px bg-canvas-ink/10" />
 

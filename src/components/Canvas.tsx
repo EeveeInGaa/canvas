@@ -20,6 +20,7 @@ import type { Point } from '@/types/geometry.types';
 import { getCanvasDebugStats } from '@/utils/debug';
 import { doRectsIntersect } from '@/utils/geometry';
 import { getGridMetrics, SNAP_GRID_SIZE } from '@/utils/grid';
+import { getLockedNodeIdSet } from '@/utils/lock';
 import {
 	getVisibleCanvasRect,
 	NODE_CONTENT_ZOOM_THRESHOLD,
@@ -75,6 +76,24 @@ export function Canvas() {
 
 	const gridMetrics = getGridMetrics({ viewport });
 	const showNodeContent = viewport.scale >= NODE_CONTENT_ZOOM_THRESHOLD;
+	const lockedNodeIdSet = useMemo(
+		() => getLockedNodeIdSet(nodes, groups),
+		[nodes, groups],
+	);
+	const isSelectionLocked = useMemo(() => {
+		if (selectedNodeIds.length === 0 && selectedGroupIds.length === 0) {
+			return false;
+		}
+
+		return (
+			selectedNodeIds.every(
+				(nodeId) => nodes.find((node) => node.id === nodeId)?.isLocked,
+			) &&
+			selectedGroupIds.every(
+				(groupId) => groups.find((group) => group.id === groupId)?.isLocked,
+			)
+		);
+	}, [groups, nodes, selectedGroupIds, selectedNodeIds]);
 
 	useEffect(() => {
 		if (showNodeContent || editingNodeId === null) {
@@ -118,6 +137,7 @@ export function Canvas() {
 		onToggleDebug: toggleDebug,
 		onToggleInfo: toggleInfo,
 		onToggleSnap: toggleSnap,
+		onToggleLockSelection: commands.toggleSelectedElementsLock,
 		onUngroup: commands.ungroupSelectedGroups,
 	});
 
@@ -139,6 +159,7 @@ export function Canvas() {
 		groups,
 		nodes,
 		selectedNodeIds,
+		lockedNodeIdSet,
 		viewport,
 		isSpacePressed,
 		isSnapEnabled,
@@ -288,6 +309,7 @@ export function Canvas() {
 						<CanvasNodeView
 							key={node.id}
 							node={node}
+							isPositionLocked={lockedNodeIdSet.has(node.id)}
 							isSelected={
 								selectedNodeIdSet.has(node.id) &&
 								!selectedGroupNodeIdSet.has(node.id)
@@ -341,9 +363,15 @@ export function Canvas() {
 			</ContextMenu.Trigger>
 
 			<CanvasContextMenu
-				canGroup={effectiveSelectedNodeIds.length > 1}
+				canGroup={
+					effectiveSelectedNodeIds.length > 1 &&
+					effectiveSelectedNodeIds.every(
+						(nodeId) => !lockedNodeIdSet.has(nodeId),
+					)
+				}
 				canUngroup={selectedGroupIds.length > 0}
 				isSelectionMenu={contextMenu.isSelectionMenu}
+				isSelectionLocked={isSelectionLocked}
 				isSnapEnabled={isSnapEnabled}
 				selectionCount={effectiveSelectedNodeIds.length}
 				onCenterViewport={centerViewportOnOrigin}
@@ -352,6 +380,7 @@ export function Canvas() {
 				onDelete={contextMenu.deleteSelection}
 				onDuplicate={contextMenu.duplicateSelection}
 				onGroup={commands.groupSelectedNodes}
+				onToggleLock={commands.toggleSelectedElementsLock}
 				onToggleSnap={toggleSnap}
 				onUngroup={commands.ungroupSelectedGroups}
 			/>

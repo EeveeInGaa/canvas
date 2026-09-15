@@ -22,6 +22,7 @@ function areCanvasNodesEqual(
 
 		const sharedFieldsAreEqual =
 			leftNode.id === rightNode.id &&
+			leftNode.isLocked === rightNode.isLocked &&
 			leftNode.type === rightNode.type &&
 			leftNode.x === rightNode.x &&
 			leftNode.y === rightNode.y &&
@@ -69,6 +70,7 @@ function areCanvasGroupsEqual(
 
 		return (
 			leftGroup.id === rightGroup.id &&
+			leftGroup.isLocked === rightGroup.isLocked &&
 			leftGroup.nodeIds.length === rightGroup.nodeIds.length &&
 			leftGroup.nodeIds.every(
 				(nodeId, nodeIndex) => nodeId === rightGroup.nodeIds[nodeIndex],

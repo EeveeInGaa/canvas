@@ -12,6 +12,7 @@ type CanvasContextMenuProps = {
 	canGroup: boolean;
 	canUngroup: boolean;
 	isSelectionMenu: boolean;
+	isSelectionLocked: boolean;
 	isSnapEnabled: boolean;
 	selectionCount: number;
 	onCenterViewport: () => void;
@@ -20,6 +21,7 @@ type CanvasContextMenuProps = {
 	onDelete: () => void;
 	onDuplicate: () => void;
 	onGroup: () => void;
+	onToggleLock: () => void;
 	onToggleSnap: () => void;
 	onUngroup: () => void;
 };
@@ -28,6 +30,7 @@ export function CanvasContextMenu({
 	canGroup,
 	canUngroup,
 	isSelectionMenu,
+	isSelectionLocked,
 	isSnapEnabled,
 	selectionCount,
 	onCenterViewport,
@@ -36,6 +39,7 @@ export function CanvasContextMenu({
 	onDelete,
 	onDuplicate,
 	onGroup,
+	onToggleLock,
 	onToggleSnap,
 	onUngroup,
 }: CanvasContextMenuProps) {
@@ -52,9 +56,11 @@ export function CanvasContextMenu({
 						<CanvasSelectionMenu
 							canGroup={canGroup}
 							canUngroup={canUngroup}
+							isSelectionLocked={isSelectionLocked}
 							onDelete={onDelete}
 							onDuplicate={onDuplicate}
 							onGroup={onGroup}
+							onToggleLock={onToggleLock}
 							onUngroup={onUngroup}
 							selectionCount={selectionCount}
 						/>

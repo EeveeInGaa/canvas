@@ -17,6 +17,7 @@ type UseCanvasInteractionStartParams = {
 	groups: CanvasGroup[];
 	nodes: CanvasNode[];
 	selectedNodeIds: string[];
+	lockedNodeIdSet: Set<string>;
 	selectedGroupIds: string[];
 	viewport: Viewport;
 	isSpacePressed: boolean;
@@ -31,6 +32,7 @@ export function useCanvasInteractionStart({
 	groups,
 	nodes,
 	selectedNodeIds,
+	lockedNodeIdSet,
 	selectedGroupIds,
 	viewport,
 	isSpacePressed,
@@ -141,8 +143,14 @@ export function useCanvasInteractionStart({
 				nextSelectedNodeIds,
 				nextSelectedGroupIds,
 			);
+			const movableNodeIds = nextEffectiveNodeIds.filter(
+				(nodeId) => !lockedNodeIdSet.has(nodeId),
+			);
 
-			if (!nextEffectiveNodeIds.includes(node.id)) {
+			if (
+				!nextEffectiveNodeIds.includes(node.id) ||
+				lockedNodeIdSet.has(node.id)
+			) {
 				setInteraction({ type: 'idle' });
 				return;
 			}
@@ -150,15 +158,16 @@ export function useCanvasInteractionStart({
 			setInteraction({
 				type: 'dragging',
 				dragSource: 'node',
-				nodeIds: nextEffectiveNodeIds,
+				nodeIds: movableNodeIds,
 				startPointerX: event.clientX,
 				startPointerY: event.clientY,
-				startNodePositions: getNodePositions(nodes, nextEffectiveNodeIds),
+				startNodePositions: getNodePositions(nodes, movableNodeIds),
 			});
 		},
 		[
 			groups,
 			isSpacePressed,
+			lockedNodeIdSet,
 			nodes,
 			selectedGroupIds,
 			selectedNodeIds,
@@ -210,8 +219,15 @@ export function useCanvasInteractionStart({
 				nextSelectedNodeIds,
 				nextSelectedGroupIds,
 			);
+			const movableNodeIds = nextEffectiveNodeIds.filter(
+				(nodeId) => !lockedNodeIdSet.has(nodeId),
+			);
 
-			if (!nextSelectedGroupIds.includes(group.id)) {
+			if (
+				!nextSelectedGroupIds.includes(group.id) ||
+				group.isLocked ||
+				movableNodeIds.length === 0
+			) {
 				setInteraction({ type: 'idle' });
 				return;
 			}
@@ -219,16 +235,17 @@ export function useCanvasInteractionStart({
 			setInteraction({
 				type: 'dragging',
 				dragSource: 'group',
-				nodeIds: nextEffectiveNodeIds,
+				nodeIds: movableNodeIds,
 				startPointerX: event.clientX,
 				startPointerY: event.clientY,
-				startNodePositions: getNodePositions(nodes, nextEffectiveNodeIds),
+				startNodePositions: getNodePositions(nodes, movableNodeIds),
 			});
 		},
 		[
 			existingNodeIdSet,
 			groups,
 			isSpacePressed,
+			lockedNodeIdSet,
 			nodes,
 			selectedGroupIds,
 			selectedGroupIdSet,
@@ -242,7 +259,7 @@ export function useCanvasInteractionStart({
 
 	const handleResizePointerDown = useCallback(
 		(event: ReactPointerEvent<HTMLDivElement>, node: CanvasNode) => {
-			if (event.button !== 0) {
+			if (event.button !== 0 || lockedNodeIdSet.has(node.id)) {
 				return;
 			}
 
@@ -266,6 +283,7 @@ export function useCanvasInteractionStart({
 		},
 		[
 			groups,
+			lockedNodeIdSet,
 			nodes,
 			setEditingNodeId,
 			setInteraction,

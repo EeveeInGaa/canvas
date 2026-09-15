@@ -1,4 +1,4 @@
-import { type RefObject, useCallback } from 'react';
+import { type RefObject, useCallback, useMemo } from 'react';
 
 import type { CanvasDocumentController } from '@/hooks/useCanvasDocument';
 import type { CanvasSelectionController } from '@/hooks/useCanvasSelection';
@@ -12,6 +12,7 @@ import type { Viewport } from '@/types/viewport.types';
 import { screenToCanvas } from '@/utils/coordinates';
 import { sanitizeGroups } from '@/utils/document';
 import { createGroupId } from '@/utils/group';
+import { getLockedNodeIdSet } from '@/utils/lock';
 import {
 	createLinkNode,
 	createTextNode,
@@ -47,10 +48,15 @@ export function useCanvasCommands({
 		selectedGroupIds,
 		effectiveSelectedNodeIdSet,
 		effectiveSelectedNodeIds,
+		selectedNodeIds,
 		setSelectedNodeIds,
 		setSelectedGroupIds,
 		setEditingNodeId,
 	} = selectionController;
+	const lockedNodeIdSet = useMemo(
+		() => getLockedNodeIdSet(nodes, groups),
+		[nodes, groups],
+	);
 
 	const createNodeAtPosition = useCallback(
 		(type: CanvasNodeType, position: Point) => {
@@ -181,21 +187,29 @@ export function useCanvasCommands({
 				return false;
 			}
 
-			commitNodes((currentNodes) =>
-				currentNodes.map((node) =>
-					effectiveSelectedNodeIdSet.has(node.id)
-						? {
-								...node,
-								x: node.x + deltaX,
-								y: node.y + deltaY,
-							}
-						: node,
+			const movableNodeIds = new Set(
+				[...effectiveSelectedNodeIdSet].filter(
+					(nodeId) => !lockedNodeIdSet.has(nodeId),
 				),
 			);
 
+			if (movableNodeIds.size > 0) {
+				commitNodes((currentNodes) =>
+					currentNodes.map((node) =>
+						movableNodeIds.has(node.id)
+							? {
+									...node,
+									x: node.x + deltaX,
+									y: node.y + deltaY,
+								}
+							: node,
+					),
+				);
+			}
+
 			return true;
 		},
-		[commitNodes, effectiveSelectedNodeIdSet],
+		[commitNodes, effectiveSelectedNodeIdSet, lockedNodeIdSet],
 	);
 
 	const groupSelectedNodes = useCallback(() => {
@@ -208,9 +222,14 @@ export function useCanvasCommands({
 			return;
 		}
 
+		if (groupNodeIds.some((nodeId) => lockedNodeIdSet.has(nodeId))) {
+			return;
+		}
+
 		const groupedNodeIdSet = new Set(groupNodeIds);
 		const newGroup: CanvasGroup = {
 			id: createGroupId(),
+			isLocked: false,
 			nodeIds: groupNodeIds,
 		};
 
@@ -237,6 +256,7 @@ export function useCanvasCommands({
 	}, [
 		commitDocument,
 		effectiveSelectedNodeIds,
+		lockedNodeIdSet,
 		nodes,
 		setEditingNodeId,
 		setSelectedGroupIds,
@@ -257,12 +277,24 @@ export function useCanvasCommands({
 			),
 		];
 
-		commitDocument((currentDocument) => ({
-			nodes: currentDocument.nodes,
-			groups: currentDocument.groups.filter(
-				(group) => !selectedGroupIdSet.has(group.id),
-			),
-		}));
+		commitDocument((currentDocument) => {
+			const nodeIdsFromLockedGroups = new Set(
+				currentDocument.groups
+					.filter((group) => selectedGroupIdSet.has(group.id) && group.isLocked)
+					.flatMap((group) => group.nodeIds),
+			);
+
+			return {
+				nodes: currentDocument.nodes.map((node) =>
+					nodeIdsFromLockedGroups.has(node.id)
+						? { ...node, isLocked: true }
+						: node,
+				),
+				groups: currentDocument.groups.filter(
+					(group) => !selectedGroupIdSet.has(group.id),
+				),
+			};
+		});
 
 		setSelectedNodeIds(ungroupedNodeIds);
 		setSelectedGroupIds([]);
@@ -274,6 +306,46 @@ export function useCanvasCommands({
 		setEditingNodeId,
 		setSelectedGroupIds,
 		setSelectedNodeIds,
+	]);
+
+	const toggleSelectedElementsLock = useCallback(() => {
+		if (selectedNodeIds.length === 0 && selectedGroupIds.length === 0) {
+			return;
+		}
+
+		const selectedNodeIdSet = new Set(selectedNodeIds);
+		const selectedGroupIdSet = new Set(selectedGroupIds);
+		const selectedNodes = nodes.filter((node) =>
+			selectedNodeIdSet.has(node.id),
+		);
+		const selectedGroups = groups.filter((group) =>
+			selectedGroupIdSet.has(group.id),
+		);
+		const shouldLock = ![
+			...selectedNodes.map((node) => node.isLocked),
+			...selectedGroups.map((group) => group.isLocked),
+		].every(Boolean);
+
+		commitDocument((currentDocument) => ({
+			nodes: currentDocument.nodes.map((node) =>
+				selectedNodeIdSet.has(node.id)
+					? { ...node, isLocked: shouldLock }
+					: node,
+			),
+			groups: currentDocument.groups.map((group) =>
+				selectedGroupIdSet.has(group.id)
+					? { ...group, isLocked: shouldLock }
+					: group,
+			),
+		}));
+		setEditingNodeId(null);
+	}, [
+		commitDocument,
+		groups,
+		nodes,
+		selectedGroupIds,
+		selectedNodeIds,
+		setEditingNodeId,
 	]);
 
 	const startNodeEditing = useCallback(
@@ -314,6 +386,7 @@ export function useCanvasCommands({
 		moveSelectedNodes,
 		groupSelectedNodes,
 		ungroupSelectedGroups,
+		toggleSelectedElementsLock,
 		startNodeEditing,
 		stopNodeEditing,
 		undoDocument,

@@ -10,6 +10,7 @@ export type CanvasNodeType =
 
 type BaseCanvasNode = Rect & {
 	id: string;
+	isLocked: boolean;
 };
 
 export type TextCanvasNode = BaseCanvasNode & {
@@ -29,6 +30,7 @@ export type CanvasNode = TextCanvasNode | LinkCanvasNode;
 
 export type CanvasGroup = {
 	id: string;
+	isLocked: boolean;
 	nodeIds: string[];
 };
 

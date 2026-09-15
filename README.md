@@ -15,6 +15,7 @@ To start the application, run `pnpm dev` and open http://localhost:5173/.
 - dragging and resizing
 - text and link type
 - grouping
+- locking nodes and groups
 - jump to canvas
 - duplicate, delete
 - snap to grid
@@ -60,6 +61,6 @@ The Playwright commands start and stop their own Vite development server on
 
 ## Todo
 
-- export to PDF option
-- option to add images
-- add fixed sizes for canvas and dynamic resize
+1. add fixed sizes for canvas and dynamic resize 
+2. option to add images
+3. export to PDF option 

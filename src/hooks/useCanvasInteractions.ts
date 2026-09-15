@@ -29,6 +29,7 @@ type UseCanvasInteractionsParams = {
 	groups: CanvasGroup[];
 	nodes: CanvasNode[];
 	selectedNodeIds: string[];
+	lockedNodeIdSet: Set<string>;
 	viewport: Viewport;
 	isSpacePressed: boolean;
 	isSnapEnabled: boolean;
@@ -76,6 +77,7 @@ export function useCanvasInteractions({
 	groups,
 	nodes,
 	selectedNodeIds,
+	lockedNodeIdSet,
 	selectedGroupIds,
 	viewport,
 	isSpacePressed,
@@ -137,6 +139,7 @@ export function useCanvasInteractions({
 		groups,
 		nodes,
 		selectedNodeIds,
+		lockedNodeIdSet,
 		selectedGroupIds,
 		viewport,
 		isSpacePressed,

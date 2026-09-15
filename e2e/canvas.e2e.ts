@@ -242,6 +242,78 @@ test('moves a selected node by dragging it', async ({ page }) => {
 		.toBe(startTop + 60);
 });
 
+test('locks and unlocks a node from the context menu', async ({ page }) => {
+	const node = await createTextNode(page, 'Keep me here');
+	const startPosition = await getNodeCenter(node);
+
+	await node.click({ button: 'right' });
+	await page.getByRole('menuitem', { name: /Lock selection/ }).click();
+
+	await expect(node).toHaveAttribute('data-locked', 'true');
+	await expect(node).toHaveAccessibleName('Locked canvas node');
+	await expect(node.locator('[data-lock-indicator="node"]')).toHaveCount(1);
+
+	await page.keyboard.press('ArrowRight');
+	expect(await getNodeCenter(node)).toEqual(startPosition);
+
+	const nodeBox = await node.boundingBox();
+
+	if (!nodeBox) {
+		throw new Error('Locked node is not visible');
+	}
+
+	await page.mouse.move(
+		nodeBox.x + nodeBox.width / 2,
+		nodeBox.y + nodeBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(
+		nodeBox.x + nodeBox.width / 2 + 80,
+		nodeBox.y + nodeBox.height / 2 + 60,
+		{ steps: 5 },
+	);
+	await page.mouse.up();
+	expect(await getNodeCenter(node)).toEqual(startPosition);
+
+	await node.click({ button: 'right' });
+	await page.getByRole('menuitem', { name: /Unlock selection/ }).click();
+	await expect(node).not.toHaveAttribute('data-locked');
+
+	await page.keyboard.press('ArrowRight');
+	expect(await getNodeCenter(node)).toEqual({
+		x: startPosition.x + 5,
+		y: startPosition.y,
+	});
+});
+
+test('keeps a node lock indicator inside its node layer', async ({ page }) => {
+	const lockedNode = await createTextNode(page, 'Locked below');
+
+	await lockedNode.click({ button: 'right' });
+	await page.getByRole('menuitem', { name: /Lock selection/ }).click();
+
+	const coveringNode = await createTextNode(page, 'Covering node');
+	await page.keyboard.press('Shift+ArrowLeft');
+	await page.keyboard.press('Shift+ArrowUp');
+
+	const coveringNodeId = await coveringNode.getAttribute('data-node-id');
+	const topNodeId = await lockedNode
+		.locator('[data-lock-indicator="node"]')
+		.evaluate((indicator) => {
+			const rect = indicator.getBoundingClientRect();
+
+			return document
+				.elementsFromPoint(
+					rect.left + rect.width / 2,
+					rect.top + rect.height / 2,
+				)
+				.map((element) => element.closest<HTMLElement>('[data-node-id]'))
+				.find((element) => element !== null)?.dataset.nodeId;
+		});
+
+	expect(topNodeId).toBe(coveringNodeId);
+});
+
 test('groups and ungroups the selected nodes', async ({ page }) => {
 	await createSeparatedNodes(page);
 	await selectBothNodes(page);
@@ -256,6 +328,70 @@ test('groups and ungroups the selected nodes', async ({ page }) => {
 
 	await expect(group).toHaveCount(0);
 	await expect(page.locator(selectedNodeSelector)).toHaveCount(2);
+});
+
+test('locks and unlocks a group with the keyboard shortcut', async ({
+	page,
+}) => {
+	await createSeparatedNodes(page);
+	await selectBothNodes(page);
+	await page.keyboard.press('Control+g');
+
+	const group = page.locator('[data-group-id]');
+	const nodes = page.locator(nodeSelector);
+	const startPositions = await Promise.all([
+		getNodeCenter(nodes.nth(0)),
+		getNodeCenter(nodes.nth(1)),
+	]);
+
+	await page.keyboard.press('Control+Shift+l');
+	await expect(group).toHaveAttribute('data-locked', 'true');
+	await expect(group).toHaveAccessibleName('Locked node group');
+	await expect(group.locator('[data-lock-indicator="group"]')).toHaveCount(1);
+	await expect(nodes.locator('[data-lock-indicator]')).toHaveCount(0);
+
+	await page.keyboard.press('ArrowRight');
+	expect(
+		await Promise.all([
+			getNodeCenter(nodes.nth(0)),
+			getNodeCenter(nodes.nth(1)),
+		]),
+	).toEqual(startPositions);
+
+	const groupBox = await group.boundingBox();
+
+	if (!groupBox) {
+		throw new Error('Locked group is not visible');
+	}
+
+	await page.mouse.move(groupBox.x + groupBox.width / 2, groupBox.y + 1);
+	await page.mouse.down();
+	await page.mouse.move(groupBox.x + groupBox.width / 2 + 80, groupBox.y + 61, {
+		steps: 5,
+	});
+	await page.mouse.up();
+	expect(
+		await Promise.all([
+			getNodeCenter(nodes.nth(0)),
+			getNodeCenter(nodes.nth(1)),
+		]),
+	).toEqual(startPositions);
+
+	await page.keyboard.press('Control+Shift+l');
+	await expect(group).not.toHaveAttribute('data-locked');
+	await page.keyboard.press('ArrowRight');
+
+	expect(
+		await Promise.all([
+			getNodeCenter(nodes.nth(0)),
+			getNodeCenter(nodes.nth(1)),
+		]),
+	).toEqual(
+		startPositions.map((position) => ({
+			x: position.x + 5,
+			y: position.y,
+		})),
+	);
 });
 
 test('undoes and redoes node creation', async ({ page }) => {

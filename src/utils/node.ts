@@ -20,6 +20,7 @@ export function createTextNode(position: Point): TextCanvasNode {
 
 	return {
 		id: createNodeId(),
+		isLocked: false,
 		type: CanvasNodeType.Text,
 		x: position.x - width / 2,
 		y: position.y - height / 2,
@@ -35,6 +36,7 @@ export function createLinkNode(position: Point): LinkCanvasNode {
 
 	return {
 		id: createNodeId(),
+		isLocked: false,
 		type: CanvasNodeType.Link,
 		x: position.x - width / 2,
 		y: position.y - height / 2,

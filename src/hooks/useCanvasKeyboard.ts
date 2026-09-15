@@ -18,6 +18,7 @@ type UseCanvasKeyboardParams = {
 	onToggleDebug: () => void;
 	onToggleInfo: () => void;
 	onToggleSnap: () => void;
+	onToggleLockSelection?: () => void;
 	onMoveSelection?: (deltaX: number, deltaY: number) => boolean;
 	onGroup?: () => void;
 	onUngroup?: () => void;
@@ -40,6 +41,7 @@ export function useCanvasKeyboard({
 	onToggleDebug,
 	onToggleInfo,
 	onToggleSnap,
+	onToggleLockSelection,
 	onMoveSelection,
 	onGroup,
 	onUngroup,
@@ -165,6 +167,14 @@ export function useCanvasKeyboard({
 
 					break;
 
+				case 'l':
+					if (event.shiftKey) {
+						event.preventDefault();
+						onToggleLockSelection?.();
+					}
+
+					break;
+
 				case 'z':
 					event.preventDefault();
 
@@ -205,6 +215,7 @@ export function useCanvasKeyboard({
 		onRedo,
 		onToggleDebug,
 		onToggleInfo,
+		onToggleLockSelection,
 		onToggleSnap,
 		onUndo,
 		onUngroup,

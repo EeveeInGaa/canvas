@@ -43,6 +43,7 @@ export const CANVAS_SHORTCUT_SECTIONS: readonly CanvasShortcutSection[] = [
 			{ action: 'Delete', keys: ['Backspace / Del'] },
 			{ action: 'Group', keys: ['Ctrl / ⌘', 'G'] },
 			{ action: 'Ungroup', keys: ['Ctrl / ⌘', 'Shift', 'G'] },
+			{ action: 'Lock / unlock', keys: ['Ctrl / ⌘', 'Shift', 'L'] },
 			{ action: 'Undo', keys: ['Ctrl / ⌘', 'Z'] },
 			{ action: 'Redo', keys: ['Ctrl / ⌘', 'Shift', 'Z'] },
 		],

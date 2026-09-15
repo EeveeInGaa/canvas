@@ -1,3 +1,4 @@
+import { Lock } from 'lucide-react';
 import { memo, type PointerEvent } from 'react';
 
 import styles from '@/components/CanvasNodeView.module.css';
@@ -15,6 +16,7 @@ type CanvasNodeViewProps = {
 	isEditing: boolean;
 	showContent: boolean;
 	isDragging: boolean;
+	isPositionLocked: boolean;
 	onPointerDown: (
 		event: PointerEvent<HTMLDivElement>,
 		node: CanvasNode,
@@ -36,6 +38,7 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 	isEditing,
 	showContent,
 	isDragging,
+	isPositionLocked,
 	onPointerDown,
 	onResizePointerDown,
 	onStartEditing,
@@ -52,13 +55,15 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 		isSelected
 			? 'border-2 border-accent/[0.95]'
 			: 'border border-canvas-ink/[0.14]'
-	} ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${
+	} ${isPositionLocked ? 'cursor-not-allowed' : isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${
 		isContentEditing ? 'select-text' : 'select-none'
 	}`;
 
 	return (
 		<div
-			className={`absolute box-border touch-none overflow-hidden rounded-xl bg-surface ${nodeStateClassName} ${nodeDetailClassName}`}
+			className={`absolute isolate box-border touch-none overflow-hidden rounded-xl bg-surface ${nodeStateClassName} ${nodeDetailClassName}`}
+			aria-label={isPositionLocked ? 'Locked canvas node' : undefined}
+			data-locked={isPositionLocked || undefined}
 			data-selected={isSelected || undefined}
 			role="application"
 			ref={(element) => {
@@ -84,6 +89,15 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 				height: node.height,
 			}}
 		>
+			{node.isLocked ? (
+				<span
+					className="pointer-events-none absolute top-1.5 right-1.5 z-[2] grid size-5 place-items-center rounded-full border border-canvas-ink/15 bg-panel/95 text-canvas-ink/65 shadow-sm"
+					data-lock-indicator="node"
+				>
+					<Lock aria-hidden="true" className="size-3" strokeWidth={1.6} />
+				</span>
+			) : null}
+
 			{showContent && node.type === CanvasNodeType.Text ? (
 				<TextNode
 					node={node}
@@ -102,7 +116,7 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 				/>
 			) : null}
 
-			{isSelected && !isContentEditing && (
+			{isSelected && !isContentEditing && !isPositionLocked && (
 				<div
 					aria-hidden="true"
 					className="absolute -right-[13px] -bottom-[13px] flex size-6 touch-none cursor-nwse-resize items-start justify-start"

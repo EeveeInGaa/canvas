@@ -1,3 +1,4 @@
+import { Lock } from 'lucide-react';
 import type { PointerEvent } from 'react';
 
 import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types.ts';
@@ -51,8 +52,9 @@ export function CanvasGroupFrame({
 				onElementChange(group.id, element);
 			}}
 			data-group-id={group.id}
+			data-locked={group.isLocked || undefined}
 			data-selected={isSelected || undefined}
-			aria-label="Node group"
+			aria-label={group.isLocked ? 'Locked node group' : 'Node group'}
 			className={`pointer-events-none absolute z-[1] box-border rounded-2xl transition-[border-color,background-color,box-shadow] duration-[120ms] ease-[ease] ${frameStateClassName}`}
 			role="group"
 			style={{
@@ -62,11 +64,20 @@ export function CanvasGroupFrame({
 				height: groupRect.height + GROUP_FRAME_PADDING * 2,
 			}}
 		>
+			{group.isLocked ? (
+				<span
+					className="pointer-events-none absolute -top-2.5 right-2 z-[2] grid size-5 place-items-center rounded-full border border-canvas-ink/15 bg-panel text-canvas-ink/65 shadow-sm"
+					data-lock-indicator="group"
+				>
+					<Lock aria-hidden="true" className="size-3" strokeWidth={1.6} />
+				</span>
+			) : null}
+
 			{(['top', 'right', 'bottom', 'left'] as const).map((side) => (
 				<div
 					key={side}
 					aria-hidden="true"
-					className={`absolute touch-none pointer-events-auto ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${GROUP_HANDLE_CLASS_NAMES[side]}`}
+					className={`absolute touch-none pointer-events-auto ${group.isLocked ? 'cursor-not-allowed' : isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${GROUP_HANDLE_CLASS_NAMES[side]}`}
 					onPointerDown={(event) => {
 						onPointerDown(event, group);
 					}}

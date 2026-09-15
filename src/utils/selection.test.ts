@@ -9,6 +9,7 @@ import {
 const nodes: CanvasNode[] = [
 	{
 		id: 'ungrouped',
+		isLocked: false,
 		type: 'text',
 		text: 'Ungrouped',
 		x: 10,
@@ -18,6 +19,7 @@ const nodes: CanvasNode[] = [
 	},
 	{
 		id: 'grouped',
+		isLocked: false,
 		type: 'text',
 		text: 'Grouped',
 		x: 100,
@@ -27,7 +29,9 @@ const nodes: CanvasNode[] = [
 	},
 ];
 
-const groups: CanvasGroup[] = [{ id: 'group', nodeIds: ['grouped'] }];
+const groups: CanvasGroup[] = [
+	{ id: 'group', isLocked: false, nodeIds: ['grouped'] },
+];
 
 describe('getSelectionInRect', () => {
 	it('selects an ungrouped node when the selection partially overlaps it', () => {
