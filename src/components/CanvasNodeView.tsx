@@ -101,6 +101,7 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 			{showContent && node.type === CanvasNodeType.Text ? (
 				<TextNode
 					node={node}
+					isSelected={isSelected}
 					isEditing={isContentEditing}
 					onChange={onTextChange}
 					onStopEditing={onStopEditing}

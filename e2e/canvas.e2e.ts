@@ -120,6 +120,40 @@ test('creates and edits a text node', async ({ page }) => {
 	await expect(node.locator('textarea')).toHaveCount(0);
 });
 
+test('scrolls overflowing text inside a selected node without moving the canvas', async ({
+	page,
+}) => {
+	const node = await createTextNode(
+		page,
+		Array.from({ length: 20 }, (_, index) => `Line ${index + 1}`).join('\n'),
+	);
+	const scrollContainer = node.locator('[data-node-scroll-container="true"]');
+	const viewportLayer = page.locator('[data-canvas-viewport]');
+	const initialTransform = await viewportLayer.evaluate(
+		(element) => (element as HTMLElement).style.transform,
+	);
+
+	await expect
+		.poll(() =>
+			scrollContainer.evaluate(
+				(element) => element.scrollHeight > element.clientHeight,
+			),
+		)
+		.toBe(true);
+
+	await scrollContainer.hover();
+	await page.mouse.wheel(0, 120);
+
+	await expect
+		.poll(() => scrollContainer.evaluate((element) => element.scrollTop))
+		.toBeGreaterThan(0);
+	expect(
+		await viewportLayer.evaluate(
+			(element) => (element as HTMLElement).style.transform,
+		),
+	).toBe(initialTransform);
+});
+
 test('fills the viewport without moving the camera or existing nodes on resize', async ({
 	page,
 }) => {

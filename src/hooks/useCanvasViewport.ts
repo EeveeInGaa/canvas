@@ -132,11 +132,17 @@ export function useCanvasViewport({
 		}
 
 		const handleWheel = (event: WheelEvent) => {
-			event.preventDefault();
-
-			const canvasRect = canvasElement.getBoundingClientRect();
-
 			const isZoomGesture = event.ctrlKey || event.metaKey;
+			const scrollContainer =
+				event.target instanceof Element
+					? event.target.closest('[data-node-scroll-container="true"]')
+					: null;
+
+			if (!isZoomGesture && scrollContainer) {
+				return;
+			}
+
+			event.preventDefault();
 
 			if (!isZoomGesture) {
 				setViewport((currentViewport) => ({
@@ -147,6 +153,8 @@ export function useCanvasViewport({
 
 				return;
 			}
+
+			const canvasRect = canvasElement.getBoundingClientRect();
 
 			const pointerX = event.clientX - canvasRect.left;
 			const pointerY = event.clientY - canvasRect.top;
