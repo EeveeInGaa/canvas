@@ -17,6 +17,7 @@ import { useCanvasSelection } from '@/hooks/useCanvasSelection';
 import { useCanvasTextEditHistory } from '@/hooks/useCanvasTextEditHistory';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import type { Point } from '@/types/geometry.types';
+import { getCanvasDebugStats } from '@/utils/debug';
 import { doRectsIntersect } from '@/utils/geometry';
 import { getGridMetrics, SNAP_GRID_SIZE } from '@/utils/grid';
 import {
@@ -179,7 +180,11 @@ export function Canvas() {
 
 		return retainedNodeIds;
 	}, [editingNodeId, interaction]);
-	const visibleCanvasRect = useMemo(
+	const viewportCanvasRect = useMemo(
+		() => getVisibleCanvasRect(viewport, CANVAS_VIEWPORT_SIZE),
+		[viewport],
+	);
+	const renderingCanvasRect = useMemo(
 		() =>
 			getVisibleCanvasRect(
 				viewport,
@@ -193,9 +198,35 @@ export function Canvas() {
 			orderedNodes.filter(
 				(node) =>
 					retainedNodeIdSet.has(node.id) ||
-					doRectsIntersect(node, visibleCanvasRect),
+					doRectsIntersect(node, renderingCanvasRect),
 			),
-		[orderedNodes, retainedNodeIdSet, visibleCanvasRect],
+		[orderedNodes, retainedNodeIdSet, renderingCanvasRect],
+	);
+	const debugStats = useMemo(
+		() =>
+			isDebugEnabled
+				? getCanvasDebugStats({
+						nodes,
+						renderedNodes,
+						viewportRect: viewportCanvasRect,
+						renderingRect: renderingCanvasRect,
+						totalGroupCount: groups.length,
+						selectedNodeCount: selectedNodeIds.length,
+						selectedGroupCount: selectedGroupIds.length,
+						affectedNodeCount: effectiveSelectedNodeIds.length,
+					})
+				: null,
+		[
+			effectiveSelectedNodeIds.length,
+			groups.length,
+			isDebugEnabled,
+			nodes,
+			renderedNodes,
+			renderingCanvasRect,
+			selectedGroupIds.length,
+			selectedNodeIds.length,
+			viewportCanvasRect,
+		],
 	);
 
 	return (
@@ -295,9 +326,15 @@ export function Canvas() {
 					onCreateLinkNode={commands.createLinkNodeAtCanvasCenter}
 				/>
 
-				{isDebugEnabled && (
-					<CanvasDebugOverlay position={cursorCanvasPosition} />
-				)}
+				{debugStats ? (
+					<CanvasDebugOverlay
+						position={cursorCanvasPosition}
+						stats={debugStats}
+						zoom={viewport.scale}
+						interactionType={interaction.type}
+						showNodeContent={showNodeContent}
+					/>
+				) : null}
 			</ContextMenu.Trigger>
 
 			<CanvasContextMenu

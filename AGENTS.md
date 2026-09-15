@@ -42,3 +42,9 @@ Run `pnpm check` and `pnpm build` after source changes. The project does not hav
 - Do not add a second linting or formatting tool.
 - Do not commit changes unless the user explicitly asks for a commit.
 - Preserve unrelated changes already present in the working tree.
+
+## Code
+
+- use latest best practices and skills
+- change only what is needed
+- the code should be readable, maintainable and performant

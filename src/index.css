@@ -17,6 +17,9 @@
 	--canvas-danger: #b33f49;
 	--canvas-danger-active: #982f39;
 	--canvas-danger-soft: rgb(179 63 73 / 10%);
+	--canvas-performance-good: #277a4b;
+	--canvas-performance-medium: #9a6700;
+	--canvas-performance-bad: #b33f49;
 	--canvas-focus: #5367c8;
 	--canvas-grid-dot: rgb(37 41 50 / 14%);
 	--canvas-skeleton: rgb(37 41 50 / 10%);
@@ -48,6 +51,9 @@
 		--canvas-danger: #ff9b9b;
 		--canvas-danger-active: #ffb4b4;
 		--canvas-danger-soft: rgb(255 95 95 / 15%);
+		--canvas-performance-good: #69d696;
+		--canvas-performance-medium: #f0c45b;
+		--canvas-performance-bad: #ff9b9b;
 		--canvas-focus: #9db1ff;
 		--canvas-grid-dot: rgb(255 255 255 / 18%);
 		--canvas-skeleton: rgb(255 255 255 / 12%);
@@ -79,6 +85,9 @@
 	--color-danger: var(--canvas-danger);
 	--color-danger-active: var(--canvas-danger-active);
 	--color-danger-soft: var(--canvas-danger-soft);
+	--color-performance-good: var(--canvas-performance-good);
+	--color-performance-medium: var(--canvas-performance-medium);
+	--color-performance-bad: var(--canvas-performance-bad);
 	--color-focus: var(--canvas-focus);
 }
 
