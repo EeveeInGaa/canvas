@@ -7,13 +7,13 @@ import {
 } from 'react';
 
 import styles from '@/components/CanvasNodeView.module.css';
-import { LinkNode } from '@/components/nodes/LinkNode.tsx';
-import { TextNode } from '@/components/nodes/TextNode.tsx';
+import { LinkNode } from '@/components/nodes/LinkNode';
+import { TextNode } from '@/components/nodes/TextNode';
 import {
 	type CanvasNode,
 	CanvasNodeType,
 	type LinkNodeChanges,
-} from '@/types/canvas-node.types.ts';
+} from '@/types/canvas-node.types';
 
 type CanvasNodeViewProps = {
 	node: CanvasNode;

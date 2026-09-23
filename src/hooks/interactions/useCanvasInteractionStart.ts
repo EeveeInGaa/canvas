@@ -1,6 +1,7 @@
 import {
 	type Dispatch,
 	type PointerEvent as ReactPointerEvent,
+	type RefObject,
 	type SetStateAction,
 	useCallback,
 	useMemo,
@@ -12,10 +13,16 @@ import type {
 	CanvasNode,
 } from '@/types/canvas-node.types';
 import type { Point } from '@/types/geometry.types';
-import type { InteractionState } from '@/types/interaction.types';
+import type {
+	InteractionState,
+	SelectionMode,
+} from '@/types/interaction.types';
 import type { Viewport } from '@/types/viewport.types';
 import { getNodePositions } from '@/utils/drag';
-import { getEffectiveSelectedNodeIds } from '@/utils/selection';
+import {
+	getEffectiveSelectedNodeIds,
+	mergeCanvasSelection,
+} from '@/utils/selection';
 
 type UseCanvasInteractionStartParams = {
 	canvasDocument: CanvasDocument;
@@ -26,6 +33,7 @@ type UseCanvasInteractionStartParams = {
 	selectedGroupIds: string[];
 	viewport: Viewport;
 	isSpacePressed: boolean;
+	pointerCaptureTargetRef: RefObject<HTMLDivElement | null>;
 	getCanvasPosition: (clientX: number, clientY: number) => Point | null;
 	setInteraction: Dispatch<SetStateAction<InteractionState>>;
 	setSelectedNodeIds: Dispatch<SetStateAction<string[]>>;
@@ -42,16 +50,13 @@ export function useCanvasInteractionStart({
 	selectedGroupIds,
 	viewport,
 	isSpacePressed,
+	pointerCaptureTargetRef,
 	getCanvasPosition,
 	setInteraction,
 	setSelectedNodeIds,
 	setSelectedGroupIds,
 	setEditingNodeId,
 }: UseCanvasInteractionStartParams) {
-	const selectedNodeIdSet = useMemo(
-		() => new Set(selectedNodeIds),
-		[selectedNodeIds],
-	);
 	const selectedGroupIdSet = useMemo(
 		() => new Set(selectedGroupIds),
 		[selectedGroupIds],
@@ -59,6 +64,15 @@ export function useCanvasInteractionStart({
 	const existingNodeIdSet = useMemo(
 		() => new Set(nodes.map((node) => node.id)),
 		[nodes],
+	);
+	const getSelectionMode = useCallback(
+		(event: ReactPointerEvent<HTMLDivElement>): SelectionMode =>
+			event.shiftKey
+				? 'add'
+				: event.metaKey || event.ctrlKey
+					? 'toggle'
+					: 'replace',
+		[],
 	);
 
 	const handleCanvasPointerDown = useCallback(
@@ -68,6 +82,7 @@ export function useCanvasInteractionStart({
 			}
 
 			event.currentTarget.setPointerCapture(event.pointerId);
+			pointerCaptureTargetRef.current = event.currentTarget;
 			setEditingNodeId(null);
 
 			if (isSpacePressed) {
@@ -87,10 +102,9 @@ export function useCanvasInteractionStart({
 				return;
 			}
 
-			const hasSelectionModifier =
-				event.metaKey || event.ctrlKey || event.shiftKey;
+			const selectionMode = getSelectionMode(event);
 
-			if (!hasSelectionModifier) {
+			if (selectionMode === 'replace') {
 				setSelectedNodeIds([]);
 				setSelectedGroupIds([]);
 			}
@@ -101,11 +115,18 @@ export function useCanvasInteractionStart({
 				startY: canvasPosition.y,
 				currentX: canvasPosition.x,
 				currentY: canvasPosition.y,
+				selectionMode,
+				startSelectedNodeIds: selectedNodeIds,
+				startSelectedGroupIds: selectedGroupIds,
 			});
 		},
 		[
 			getCanvasPosition,
+			getSelectionMode,
 			isSpacePressed,
+			pointerCaptureTargetRef,
+			selectedGroupIds,
+			selectedNodeIds,
 			setEditingNodeId,
 			setInteraction,
 			setSelectedGroupIds,
@@ -123,19 +144,27 @@ export function useCanvasInteractionStart({
 
 			event.stopPropagation();
 			event.currentTarget.setPointerCapture(event.pointerId);
+			pointerCaptureTargetRef.current = event.currentTarget;
 			setEditingNodeId(null);
 
-			const hasSelectionModifier = event.metaKey || event.ctrlKey;
 			let nextSelectedNodeIds = selectedNodeIds;
 			let nextSelectedGroupIds = selectedGroupIds;
 			const currentEffectiveNodeIdSet = new Set(
 				getEffectiveSelectedNodeIds(groups, selectedNodeIds, selectedGroupIds),
 			);
 
-			if (hasSelectionModifier) {
-				nextSelectedNodeIds = selectedNodeIdSet.has(node.id)
-					? selectedNodeIds.filter((nodeId) => nodeId !== node.id)
-					: [...selectedNodeIds, node.id];
+			const selectionMode = getSelectionMode(event);
+
+			if (selectionMode !== 'replace') {
+				const nextSelection = mergeCanvasSelection(
+					groups,
+					{ nodeIds: selectedNodeIds, groupIds: selectedGroupIds },
+					{ nodeIds: [node.id], groupIds: [] },
+					selectionMode,
+				);
+
+				nextSelectedNodeIds = nextSelection.nodeIds;
+				nextSelectedGroupIds = nextSelection.groupIds;
 			} else if (!currentEffectiveNodeIdSet.has(node.id)) {
 				nextSelectedNodeIds = [node.id];
 				nextSelectedGroupIds = [];
@@ -171,13 +200,14 @@ export function useCanvasInteractionStart({
 			});
 		},
 		[
+			getSelectionMode,
 			groups,
 			isSpacePressed,
 			lockedNodeIdSet,
 			nodes,
+			pointerCaptureTargetRef,
 			selectedGroupIds,
 			selectedNodeIds,
-			selectedNodeIdSet,
 			setEditingNodeId,
 			setInteraction,
 			setSelectedGroupIds,
@@ -194,6 +224,7 @@ export function useCanvasInteractionStart({
 			event.preventDefault();
 			event.stopPropagation();
 			event.currentTarget.setPointerCapture(event.pointerId);
+			pointerCaptureTargetRef.current = event.currentTarget;
 
 			const groupNodeIds = group.nodeIds.filter((nodeId) =>
 				existingNodeIdSet.has(nodeId),
@@ -203,14 +234,21 @@ export function useCanvasInteractionStart({
 				return;
 			}
 
-			const hasSelectionModifier = event.metaKey || event.ctrlKey;
 			let nextSelectedGroupIds = selectedGroupIds;
 			let nextSelectedNodeIds = selectedNodeIds;
 
-			if (hasSelectionModifier) {
-				nextSelectedGroupIds = selectedGroupIdSet.has(group.id)
-					? selectedGroupIds.filter((groupId) => groupId !== group.id)
-					: [...selectedGroupIds, group.id];
+			const selectionMode = getSelectionMode(event);
+
+			if (selectionMode !== 'replace') {
+				const nextSelection = mergeCanvasSelection(
+					groups,
+					{ nodeIds: selectedNodeIds, groupIds: selectedGroupIds },
+					{ nodeIds: [], groupIds: [group.id] },
+					selectionMode,
+				);
+
+				nextSelectedNodeIds = nextSelection.nodeIds;
+				nextSelectedGroupIds = nextSelection.groupIds;
 			} else if (!selectedGroupIdSet.has(group.id)) {
 				nextSelectedGroupIds = [group.id];
 				nextSelectedNodeIds = [];
@@ -249,10 +287,12 @@ export function useCanvasInteractionStart({
 		},
 		[
 			existingNodeIdSet,
+			getSelectionMode,
 			groups,
 			isSpacePressed,
 			lockedNodeIdSet,
 			nodes,
+			pointerCaptureTargetRef,
 			selectedGroupIds,
 			selectedGroupIdSet,
 			selectedNodeIds,
@@ -272,6 +312,7 @@ export function useCanvasInteractionStart({
 			event.preventDefault();
 			event.stopPropagation();
 			event.currentTarget.setPointerCapture(event.pointerId);
+			pointerCaptureTargetRef.current = event.currentTarget;
 			setSelectedNodeIds([node.id]);
 			setSelectedGroupIds([]);
 			setEditingNodeId(null);
@@ -290,6 +331,7 @@ export function useCanvasInteractionStart({
 		[
 			canvasDocument,
 			lockedNodeIdSet,
+			pointerCaptureTargetRef,
 			setEditingNodeId,
 			setInteraction,
 			setSelectedGroupIds,

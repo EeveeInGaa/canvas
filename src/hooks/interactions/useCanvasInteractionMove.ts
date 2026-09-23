@@ -14,7 +14,7 @@ import { getDraggedNodePositions, getDropTargetGroupId } from '@/utils/drag';
 import { createRectFromPoints } from '@/utils/geometry';
 import { snapValueToGrid } from '@/utils/grid';
 import { clampNodeSize } from '@/utils/node';
-import { getSelectionInRect } from '@/utils/selection';
+import { getSelectionInRect, mergeCanvasSelection } from '@/utils/selection';
 
 type UseCanvasInteractionMoveParams = {
 	interaction: InteractionState;
@@ -90,10 +90,19 @@ export function useCanvasInteractionMove({
 					{ x: nextInteraction.currentX, y: nextInteraction.currentY },
 				);
 				const selection = getSelectionInRect(selectionRect, groups, nodes);
+				const nextSelection = mergeCanvasSelection(
+					groups,
+					{
+						nodeIds: interaction.startSelectedNodeIds,
+						groupIds: interaction.startSelectedGroupIds,
+					},
+					selection,
+					interaction.selectionMode,
+				);
 
 				setInteraction(nextInteraction);
-				setSelectedGroupIds(selection.groupIds);
-				setSelectedNodeIds(selection.nodeIds);
+				setSelectedGroupIds(nextSelection.groupIds);
+				setSelectedNodeIds(nextSelection.nodeIds);
 				return;
 			}
 

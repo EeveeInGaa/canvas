@@ -5,6 +5,7 @@ import {
 	type SetStateAction,
 	useCallback,
 	useMemo,
+	useRef,
 	useState,
 } from 'react';
 
@@ -102,6 +103,7 @@ export function useCanvasInteractions({
 	const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(
 		null,
 	);
+	const pointerCaptureTargetRef = useRef<HTMLDivElement | null>(null);
 	const elementRegistry = useCanvasElementRegistry();
 	const dragPreview = useCanvasDragPreview({
 		groups,
@@ -148,6 +150,7 @@ export function useCanvasInteractions({
 		selectedGroupIds,
 		viewport,
 		isSpacePressed,
+		pointerCaptureTargetRef,
 		getCanvasPosition,
 		setInteraction,
 		setSelectedNodeIds,
@@ -174,11 +177,17 @@ export function useCanvasInteractions({
 		setDropTargetGroupId,
 	});
 
-	const handleCanvasPointerEnd = useCanvasInteractionEnd({
+	const { handlePointerUp, handlePointerCancel } = useCanvasInteractionEnd({
+		canvasDocument,
 		interaction,
 		dragPreview,
+		pointerCaptureTargetRef,
 		commitDocument,
 		recordDocumentChange,
+		setNodes,
+		setViewport,
+		setSelectedNodeIds,
+		setSelectedGroupIds,
 		setInteraction,
 		setDropTargetGroupId,
 	});
@@ -191,8 +200,8 @@ export function useCanvasInteractions({
 		registerGroupElement: elementRegistry.registerGroupElement,
 		handleCanvasPointerDown: interactionStart.handleCanvasPointerDown,
 		handleCanvasPointerMove,
-		handleCanvasPointerUp: handleCanvasPointerEnd,
-		handleCanvasPointerCancel: handleCanvasPointerEnd,
+		handleCanvasPointerUp: handlePointerUp,
+		handleCanvasPointerCancel: handlePointerCancel,
 		handleNodePointerDown: interactionStart.handleNodePointerDown,
 		handleGroupPointerDown: interactionStart.handleGroupPointerDown,
 		handleResizePointerDown: interactionStart.handleResizePointerDown,

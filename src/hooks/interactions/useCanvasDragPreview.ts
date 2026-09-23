@@ -110,9 +110,65 @@ export function useCanvasDragPreview({
 	);
 
 	const clearPreview = useCallback(() => {
+		const latestPositions = latestPositionsRef.current;
+
 		cancelScheduledPreview();
+
+		if (latestPositions) {
+			const previewedNodeIdSet = new Set(
+				latestPositions.map((position) => position.nodeId),
+			);
+
+			for (const nodeId of previewedNodeIdSet) {
+				const node = nodeById.get(nodeId);
+				const nodeElement = nodeElementsRef.current.get(nodeId);
+
+				if (node && nodeElement) {
+					nodeElement.style.left = `${node.x}px`;
+					nodeElement.style.top = `${node.y}px`;
+				}
+			}
+
+			for (const group of groups) {
+				if (!group.nodeIds.some((nodeId) => previewedNodeIdSet.has(nodeId))) {
+					continue;
+				}
+
+				const groupElement = groupElementsRef.current.get(group.id);
+				const groupRect = getBoundingRect(
+					group.nodeIds.flatMap((nodeId) => {
+						const node = nodeById.get(nodeId);
+
+						return node
+							? [
+									{
+										x: node.x,
+										y: node.y,
+										width: node.width,
+										height: node.height,
+									},
+								]
+							: [];
+					}),
+				);
+
+				if (groupElement && groupRect) {
+					groupElement.style.left = `${groupRect.x - GROUP_FRAME_PADDING}px`;
+					groupElement.style.top = `${groupRect.y - GROUP_FRAME_PADDING}px`;
+					groupElement.style.width = `${groupRect.width + GROUP_FRAME_PADDING * 2}px`;
+					groupElement.style.height = `${groupRect.height + GROUP_FRAME_PADDING * 2}px`;
+				}
+			}
+		}
+
 		latestPositionsRef.current = null;
-	}, [cancelScheduledPreview]);
+	}, [
+		cancelScheduledPreview,
+		groupElementsRef,
+		groups,
+		nodeById,
+		nodeElementsRef,
+	]);
 
 	return {
 		latestPositionsRef,

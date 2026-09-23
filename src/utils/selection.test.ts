@@ -4,6 +4,7 @@ import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types';
 import {
 	getEffectiveSelectedNodeIds,
 	getSelectionInRect,
+	mergeCanvasSelection,
 } from '@/utils/selection';
 
 const nodes: CanvasNode[] = [
@@ -70,5 +71,40 @@ describe('getEffectiveSelectedNodeIds', () => {
 		expect(
 			getEffectiveSelectedNodeIds(groups, ['ungrouped', 'grouped'], ['group']),
 		).toEqual(['ungrouped', 'grouped']);
+	});
+});
+
+describe('mergeCanvasSelection', () => {
+	it('adds rectangle matches to the starting selection', () => {
+		expect(
+			mergeCanvasSelection(
+				groups,
+				{ nodeIds: ['ungrouped'], groupIds: [] },
+				{ nodeIds: [], groupIds: ['group'] },
+				'add',
+			),
+		).toEqual({ nodeIds: ['ungrouped'], groupIds: ['group'] });
+	});
+
+	it('toggles direct nodes and groups from the starting selection', () => {
+		expect(
+			mergeCanvasSelection(
+				groups,
+				{ nodeIds: ['ungrouped'], groupIds: ['group'] },
+				{ nodeIds: ['ungrouped'], groupIds: ['group'] },
+				'toggle',
+			),
+		).toEqual({ nodeIds: [], groupIds: [] });
+	});
+
+	it('removes direct node duplicates covered by a selected group', () => {
+		expect(
+			mergeCanvasSelection(
+				groups,
+				{ nodeIds: ['grouped'], groupIds: [] },
+				{ nodeIds: [], groupIds: ['group'] },
+				'add',
+			),
+		).toEqual({ nodeIds: [], groupIds: ['group'] });
 	});
 });

@@ -1,5 +1,6 @@
 import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types';
 import type { Rect } from '@/types/geometry.types';
+import type { SelectionMode } from '@/types/interaction.types';
 import { doRectsIntersect } from '@/utils/geometry';
 import { doesRectIntersectGroupFrame } from '@/utils/group';
 
@@ -7,6 +8,61 @@ export type CanvasSelection = {
 	nodeIds: string[];
 	groupIds: string[];
 };
+
+function normalizeSelection(
+	groups: CanvasGroup[],
+	selection: CanvasSelection,
+): CanvasSelection {
+	const groupIds = [...new Set(selection.groupIds)];
+	const selectedGroupIdSet = new Set(groupIds);
+	const selectedGroupNodeIdSet = new Set(
+		groups
+			.filter((group) => selectedGroupIdSet.has(group.id))
+			.flatMap((group) => group.nodeIds),
+	);
+
+	return {
+		groupIds,
+		nodeIds: [...new Set(selection.nodeIds)].filter(
+			(nodeId) => !selectedGroupNodeIdSet.has(nodeId),
+		),
+	};
+}
+
+export function mergeCanvasSelection(
+	groups: CanvasGroup[],
+	startSelection: CanvasSelection,
+	nextSelection: CanvasSelection,
+	mode: SelectionMode,
+): CanvasSelection {
+	if (mode === 'replace') {
+		return normalizeSelection(groups, nextSelection);
+	}
+
+	const nodeIdSet = new Set(startSelection.nodeIds);
+	const groupIdSet = new Set(startSelection.groupIds);
+
+	for (const groupId of nextSelection.groupIds) {
+		if (mode === 'toggle' && groupIdSet.has(groupId)) {
+			groupIdSet.delete(groupId);
+		} else {
+			groupIdSet.add(groupId);
+		}
+	}
+
+	for (const nodeId of nextSelection.nodeIds) {
+		if (mode === 'toggle' && nodeIdSet.has(nodeId)) {
+			nodeIdSet.delete(nodeId);
+		} else {
+			nodeIdSet.add(nodeId);
+		}
+	}
+
+	return normalizeSelection(groups, {
+		nodeIds: [...nodeIdSet],
+		groupIds: [...groupIdSet],
+	});
+}
 
 export function getEffectiveSelectedNodeIds(
 	groups: CanvasGroup[],

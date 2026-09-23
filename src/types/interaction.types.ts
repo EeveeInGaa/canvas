@@ -1,4 +1,6 @@
-import type { CanvasDocument } from '@/types/canvas-node.types.ts';
+import type { CanvasDocument } from '@/types/canvas-node.types';
+
+export type SelectionMode = 'replace' | 'add' | 'toggle';
 
 export type ResizeHandle = 'bottom-right';
 
@@ -39,4 +41,7 @@ export type InteractionState =
 			startY: number;
 			currentX: number;
 			currentY: number;
+			selectionMode: SelectionMode;
+			startSelectedNodeIds: string[];
+			startSelectedGroupIds: string[];
 	  };

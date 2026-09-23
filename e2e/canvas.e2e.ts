@@ -64,6 +64,41 @@ async function dragWithinCanvas(
 	});
 }
 
+async function cancelActivePointer(page: Page) {
+	await page
+		.getByRole('region', { name: 'Canvas workspace' })
+		.dispatchEvent('pointercancel', {
+			bubbles: true,
+			button: 0,
+			buttons: 0,
+			pointerId: 1,
+			pointerType: 'mouse',
+		});
+}
+
+async function getNodeSelectionPoints(page: Page, node: Locator) {
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
+	const canvasBox = await canvas.boundingBox();
+	const nodeBox = await node.boundingBox();
+
+	if (!canvasBox || !nodeBox) {
+		throw new Error('Canvas and node must have layout boxes');
+	}
+
+	const margin = 10;
+
+	return {
+		start: {
+			x: nodeBox.x - canvasBox.x - margin,
+			y: nodeBox.y - canvasBox.y - margin,
+		},
+		end: {
+			x: nodeBox.x - canvasBox.x + nodeBox.width + margin,
+			y: nodeBox.y - canvasBox.y + nodeBox.height + margin,
+		},
+	};
+}
+
 async function selectBothNodes(page: Page) {
 	const { start, end } = await getSelectionPoints(page);
 
@@ -152,6 +187,45 @@ test('labels node editors and restores visible node focus after editing', async 
 	await expect(linkUrl).toHaveAttribute('autocomplete', 'url');
 	await expect(linkUrl).toHaveAttribute('spellcheck', 'false');
 	await expect(linkUrl).toHaveCSS('outline-style', 'solid');
+});
+
+test('edits links without navigation and opens only normalized safe URLs', async ({
+	page,
+}) => {
+	await page.getByRole('button', { name: 'Link', exact: true }).click();
+	const linkNode = page.locator(nodeSelector).first();
+	const titleInput = page.getByRole('textbox', { name: 'Link title' });
+	const urlInput = page.getByRole('textbox', { name: 'Link URL' });
+
+	await titleInput.fill('Project brief');
+	await urlInput.fill('example.com/brief');
+	await urlInput.press('Escape');
+
+	let popupCount = 0;
+	page.on('popup', () => {
+		popupCount += 1;
+	});
+
+	await linkNode.locator('strong').dblclick();
+	await expect(titleInput).toBeFocused();
+	expect(popupCount).toBe(0);
+	await titleInput.press('Escape');
+
+	const openLink = linkNode.getByRole('link', { name: 'Open Project brief' });
+	await expect(openLink).toHaveAttribute('href', 'https://example.com/brief');
+	const popupPromise = page.waitForEvent('popup');
+	await openLink.click();
+	const popup = await popupPromise;
+	expect(popup.url()).toBe('https://example.com/brief');
+	expect(popupCount).toBe(1);
+	await popup.close();
+
+	await linkNode.locator('strong').dblclick();
+	await urlInput.fill('javascript:alert(1)');
+	await expect(urlInput).toHaveAttribute('aria-invalid', 'true');
+	await urlInput.press('Escape');
+	await expect(linkNode.getByRole('link')).toHaveCount(0);
+	await expect(linkNode).toContainText('Edit to enter a valid web address.');
 });
 
 test('supports keyboard focus, selection, movement, resize, editing, and deletion', async ({
@@ -442,6 +516,160 @@ test('selects multiple nodes with a selection box in both directions', async ({
 	await expect(page.getByTestId('canvas-selection-box')).toBeVisible();
 	await page.mouse.up();
 	await expect(page.locator(selectedNodeSelector)).toHaveCount(2);
+});
+
+test('adds and toggles marquee and click selections with modifiers', async ({
+	page,
+}) => {
+	await createSeparatedNodes(page);
+	const leftNode = page.getByRole('group', { name: /Text node: Left node/ });
+	const rightNode = page.getByRole('group', { name: /Text node: Right node/ });
+	const rightSelection = await getNodeSelectionPoints(page, rightNode);
+
+	await leftNode.click();
+	await page.keyboard.down('Shift');
+	await dragWithinCanvas(page, rightSelection.start, rightSelection.end);
+	await page.mouse.up();
+	await page.keyboard.up('Shift');
+	await expect(page.locator(selectedNodeSelector)).toHaveCount(2);
+
+	const leftSelection = await getNodeSelectionPoints(page, leftNode);
+	await page.keyboard.down('Meta');
+	await dragWithinCanvas(page, leftSelection.end, leftSelection.start);
+	await page.mouse.up();
+	await page.keyboard.up('Meta');
+	await expect(leftNode).not.toHaveAttribute('data-selected');
+	await expect(rightNode).toHaveAttribute('data-selected', 'true');
+
+	await leftNode.click({ modifiers: ['Shift'] });
+	await expect(page.locator(selectedNodeSelector)).toHaveCount(2);
+	await rightNode.click({ modifiers: ['Meta'] });
+	await expect(leftNode).toHaveAttribute('data-selected', 'true');
+	await expect(rightNode).not.toHaveAttribute('data-selected');
+});
+
+test('restores a cancelled drag without adding undo history', async ({
+	page,
+}) => {
+	const node = await createTextNode(page, 'Cancel drag');
+	const startPosition = await getNodeCenter(node);
+	const nodeBox = await node.boundingBox();
+
+	if (!nodeBox) {
+		throw new Error('Node must have a layout box');
+	}
+
+	await page.mouse.move(
+		nodeBox.x + nodeBox.width / 2,
+		nodeBox.y + nodeBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(
+		nodeBox.x + nodeBox.width / 2 + 80,
+		nodeBox.y + nodeBox.height / 2 + 60,
+		{ steps: 5 },
+	);
+	await expect.poll(() => getNodeCenter(node)).not.toEqual(startPosition);
+	await cancelActivePointer(page);
+	await page.mouse.up();
+	expect(await getNodeCenter(node)).toEqual(startPosition);
+
+	const restoredBox = await node.boundingBox();
+
+	if (!restoredBox) {
+		throw new Error('Restored node must have a layout box');
+	}
+
+	await page.mouse.move(
+		restoredBox.x + restoredBox.width / 2,
+		restoredBox.y + restoredBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.mouse.move(
+		restoredBox.x + restoredBox.width / 2 + 20,
+		restoredBox.y + restoredBox.height / 2,
+		{ steps: 3 },
+	);
+	await page.mouse.up();
+	expect(await getNodeCenter(node)).toEqual({
+		x: startPosition.x + 20,
+		y: startPosition.y,
+	});
+
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
+	expect(await getNodeCenter(node)).toEqual(startPosition);
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
+	await expect(node).toHaveAccessibleName(/Text node: Untitled/);
+});
+
+test('restores a cancelled resize without adding undo history', async ({
+	page,
+}) => {
+	const node = await createTextNode(page, 'Cancel resize');
+	const startWidth = await node.evaluate((element) =>
+		Number.parseFloat((element as HTMLElement).style.width),
+	);
+	const startHeight = await node.evaluate((element) =>
+		Number.parseFloat((element as HTMLElement).style.height),
+	);
+	const resizeHandle = node.locator('[data-resize-handle]');
+	const handleBox = await resizeHandle.boundingBox();
+
+	if (!handleBox) {
+		throw new Error('Resize handle must have a layout box');
+	}
+
+	await page.mouse.move(handleBox.x + 3, handleBox.y + 3);
+	await page.mouse.down();
+	await page.mouse.move(handleBox.x + 73, handleBox.y + 63, { steps: 5 });
+	await expect
+		.poll(() =>
+			node.evaluate((element) =>
+				Number.parseFloat((element as HTMLElement).style.width),
+			),
+		)
+		.not.toBe(startWidth);
+	await cancelActivePointer(page);
+	await page.mouse.up();
+	await expect
+		.poll(() =>
+			node.evaluate((element) => ({
+				width: Number.parseFloat((element as HTMLElement).style.width),
+				height: Number.parseFloat((element as HTMLElement).style.height),
+			})),
+		)
+		.toEqual({ width: startWidth, height: startHeight });
+
+	const restoredHandleBox = await resizeHandle.boundingBox();
+
+	if (!restoredHandleBox) {
+		throw new Error('Restored resize handle must have a layout box');
+	}
+
+	await page.mouse.move(restoredHandleBox.x + 3, restoredHandleBox.y + 3);
+	await page.mouse.down();
+	await page.mouse.move(restoredHandleBox.x + 23, restoredHandleBox.y + 23, {
+		steps: 3,
+	});
+	await page.mouse.up();
+	await expect
+		.poll(() =>
+			node.evaluate((element) =>
+				Number.parseFloat((element as HTMLElement).style.width),
+			),
+		)
+		.toBe(startWidth + 20);
+
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
+	await expect
+		.poll(() =>
+			node.evaluate((element) =>
+				Number.parseFloat((element as HTMLElement).style.width),
+			),
+		)
+		.toBe(startWidth);
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
+	await expect(node).toHaveAccessibleName(/Text node: Untitled/);
 });
 
 test('moves a selected node by dragging it', async ({ page }) => {
