@@ -1,5 +1,10 @@
 import { Lock } from 'lucide-react';
-import { memo, type PointerEvent } from 'react';
+import {
+	type FocusEvent,
+	type KeyboardEvent,
+	memo,
+	type PointerEvent,
+} from 'react';
 
 import styles from '@/components/CanvasNodeView.module.css';
 import { LinkNode } from '@/components/nodes/LinkNode.tsx';
@@ -17,6 +22,7 @@ type CanvasNodeViewProps = {
 	showContent: boolean;
 	isDragging: boolean;
 	isPositionLocked: boolean;
+	isKeyboardTarget: boolean;
 	onPointerDown: (
 		event: PointerEvent<HTMLDivElement>,
 		node: CanvasNode,
@@ -26,9 +32,12 @@ type CanvasNodeViewProps = {
 		node: CanvasNode,
 	) => void;
 	onStartEditing: (nodeId: string) => void;
-	onStopEditing: () => void;
+	onStopEditing: (restoreNodeFocus?: boolean) => void;
 	onTextChange: (nodeId: string, text: string) => void;
 	onElementChange: (nodeId: string, element: HTMLDivElement | null) => void;
+	onFocus?: (event: FocusEvent<HTMLDivElement>, node: CanvasNode) => void;
+	onBlur?: (event: FocusEvent<HTMLDivElement>) => void;
+	onKeyDown?: (event: KeyboardEvent<HTMLDivElement>, node: CanvasNode) => void;
 	onLinkChange: (nodeId: string, changes: LinkNodeChanges) => void;
 };
 
@@ -39,12 +48,16 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 	showContent,
 	isDragging,
 	isPositionLocked,
+	isKeyboardTarget,
 	onPointerDown,
 	onResizePointerDown,
 	onStartEditing,
 	onStopEditing,
 	onTextChange,
 	onElementChange,
+	onFocus,
+	onBlur,
+	onKeyDown,
 	onLinkChange,
 }: CanvasNodeViewProps) {
 	const isContentEditing = showContent && isEditing;
@@ -58,14 +71,25 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 	} ${isPositionLocked ? 'cursor-not-allowed' : isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${
 		isContentEditing ? 'select-text' : 'select-none'
 	}`;
+	const nodeName =
+		node.type === CanvasNodeType.Text
+			? `Text node: ${node.text.trim() || 'Untitled'}`
+			: `Link node: ${node.label.trim() || node.url.trim() || 'Untitled'}`;
+	const accessibleName = `${isSelected ? 'Selected ' : ''}${isPositionLocked ? 'position-locked ' : ''}${nodeName}`;
 
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: a canvas node is a composite focus target, not a form fieldset
 		<div
-			className={`absolute isolate box-border touch-none overflow-hidden rounded-xl bg-surface ${nodeStateClassName} ${nodeDetailClassName}`}
-			aria-label={isPositionLocked ? 'Locked canvas node' : undefined}
+			className={`absolute isolate box-border touch-none overflow-hidden rounded-xl bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${nodeStateClassName} ${nodeDetailClassName}`}
+			aria-describedby={
+				isKeyboardTarget ? 'canvas-keyboard-instructions' : undefined
+			}
+			aria-label={accessibleName}
 			data-locked={isPositionLocked || undefined}
 			data-selected={isSelected || undefined}
-			role="application"
+			data-canvas-focus-target={isKeyboardTarget || undefined}
+			role="group"
+			tabIndex={isKeyboardTarget ? -1 : undefined}
 			ref={(element) => {
 				onElementChange(node.id, element);
 			}}
@@ -75,6 +99,11 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 			onPointerDown={(event) => {
 				onPointerDown(event, node);
 			}}
+			onFocus={isKeyboardTarget ? (event) => onFocus?.(event, node) : undefined}
+			onBlur={isKeyboardTarget ? onBlur : undefined}
+			onKeyDown={
+				isKeyboardTarget ? (event) => onKeyDown?.(event, node) : undefined
+			}
 			onDoubleClick={(event) => {
 				event.stopPropagation();
 

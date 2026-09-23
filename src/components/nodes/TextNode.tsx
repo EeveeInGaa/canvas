@@ -7,7 +7,7 @@ type TextNodeProps = {
 	isSelected: boolean;
 	isEditing: boolean;
 	onChange: (nodeId: string, text: string) => void;
-	onStopEditing: () => void;
+	onStopEditing: (restoreNodeFocus?: boolean) => void;
 };
 
 export function TextNode({
@@ -35,18 +35,23 @@ export function TextNode({
 	if (isEditing) {
 		return (
 			<textarea
-				className="h-full w-full resize-none overflow-y-auto overscroll-contain border-0 bg-transparent p-3 font-[inherit] text-canvas-ink/[0.9] outline-0"
+				aria-label="Text content"
+				autoComplete="off"
+				className="h-full w-full resize-none overflow-y-auto overscroll-contain border-0 bg-transparent p-3 font-[inherit] text-canvas-ink/[0.9] outline-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
 				data-node-scroll-container={isSelected || undefined}
+				name="text-content"
 				ref={textareaRef}
+				spellCheck="true"
 				value={node.text}
 				onChange={handleChange}
 				onPointerDown={(event) => {
 					event.stopPropagation();
 				}}
-				onBlur={onStopEditing}
+				onBlur={() => onStopEditing()}
 				onKeyDown={(event) => {
 					if (event.key === 'Escape') {
-						event.currentTarget.blur();
+						event.preventDefault();
+						onStopEditing(true);
 					}
 				}}
 			/>

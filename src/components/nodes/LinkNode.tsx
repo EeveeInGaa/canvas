@@ -1,4 +1,4 @@
-import { type ChangeEvent, useLayoutEffect, useRef } from 'react';
+import { type ChangeEvent, useId, useLayoutEffect, useRef } from 'react';
 
 import type {
 	LinkCanvasNode,
@@ -9,7 +9,7 @@ type LinkNodeProps = {
 	node: LinkCanvasNode;
 	isEditing: boolean;
 	onChange: (nodeId: string, changes: LinkNodeChanges) => void;
-	onStopEditing: () => void;
+	onStopEditing: (restoreNodeFocus?: boolean) => void;
 };
 
 export function LinkNode({
@@ -19,6 +19,8 @@ export function LinkNode({
 	onStopEditing,
 }: LinkNodeProps) {
 	const labelInputRef = useRef<HTMLInputElement | null>(null);
+	const titleInputId = useId();
+	const urlInputId = useId();
 
 	useLayoutEffect(() => {
 		if (!isEditing) {
@@ -43,9 +45,8 @@ export function LinkNode({
 
 	if (isEditing) {
 		return (
-			<div
-				className="flex h-full flex-col gap-2 p-3"
-				role="application"
+			<fieldset
+				className="flex h-full min-w-0 flex-col gap-2 border-0 p-3"
 				onPointerDown={(event) => {
 					event.stopPropagation();
 				}}
@@ -62,33 +63,50 @@ export function LinkNode({
 					onStopEditing();
 				}}
 			>
+				<legend className="sr-only">Link details</legend>
+				<label className="sr-only" htmlFor={titleInputId}>
+					Link title
+				</label>
 				<input
-					className="w-full border-0 border-canvas-ink/[0.16] border-b bg-transparent px-0 pt-1 pb-2 font-[inherit] font-semibold text-canvas-ink/[0.92] outline-0"
+					autoComplete="off"
+					className="w-full border-0 border-canvas-ink/[0.16] border-b bg-transparent px-0 pt-1 pb-2 font-[inherit] font-semibold text-canvas-ink/[0.92] outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+					id={titleInputId}
+					name="link-title"
 					ref={labelInputRef}
+					spellCheck="true"
 					type="text"
 					value={node.label}
 					placeholder="Titel"
 					onChange={handleLabelChange}
 					onKeyDown={(event) => {
 						if (event.key === 'Escape') {
-							event.currentTarget.blur();
+							event.preventDefault();
+							onStopEditing(true);
 						}
 					}}
 				/>
 
+				<label className="sr-only" htmlFor={urlInputId}>
+					Link URL
+				</label>
 				<input
-					className="w-full border-0 bg-transparent p-0 font-[inherit] text-[13px] text-canvas-ink/[0.65] outline-0"
+					autoComplete="url"
+					className="w-full border-0 bg-transparent p-0 font-[inherit] text-[13px] text-canvas-ink/[0.65] outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+					id={urlInputId}
+					name="link-url"
+					spellCheck="false"
 					type="url"
 					value={node.url}
 					placeholder="https://example.com"
 					onChange={handleUrlChange}
 					onKeyDown={(event) => {
 						if (event.key === 'Escape') {
-							event.currentTarget.blur();
+							event.preventDefault();
+							onStopEditing(true);
 						}
 					}}
 				/>
-			</div>
+			</fieldset>
 		);
 	}
 

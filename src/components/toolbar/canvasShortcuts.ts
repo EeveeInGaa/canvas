@@ -28,6 +28,8 @@ export const CANVAS_SHORTCUT_SECTIONS: readonly CanvasShortcutSection[] = [
 		shortcuts: [
 			{ action: 'Pan canvas', keys: ['Space', 'Drag'] },
 			{ action: 'Pan canvas', keys: ['Scroll'] },
+			{ action: 'Enter canvas', keys: ['Arrow keys'] },
+			{ action: 'Move between items', keys: ['Ctrl / ⌘', 'Arrow keys'] },
 			{ action: 'Zoom in/out', keys: ['Ctrl / ⌘', '+ / -'] },
 			{ action: 'Zoom', keys: ['Ctrl / ⌘', 'Scroll'] },
 			{ action: 'Zoom', keys: ['Pinch'] },
@@ -40,6 +42,9 @@ export const CANVAS_SHORTCUT_SECTIONS: readonly CanvasShortcutSection[] = [
 		shortcuts: [
 			{ action: 'Move selection', keys: ['Arrow keys'] },
 			{ action: 'Move farther', keys: ['Shift', 'Arrow keys'] },
+			{ action: 'Edit focused node', keys: ['Enter'] },
+			{ action: 'Resize focused node', keys: ['Alt', 'Arrow keys'] },
+			{ action: 'Resize farther', keys: ['Alt', 'Shift', 'Arrow keys'] },
 			{ action: 'Duplicate', keys: ['Ctrl / ⌘', 'D'] },
 			{ action: 'Delete', keys: ['Backspace / Del'] },
 			{ action: 'Group', keys: ['Ctrl / ⌘', 'G'] },

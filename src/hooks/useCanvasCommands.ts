@@ -19,6 +19,7 @@ import { sanitizeGroups } from '@/utils/document';
 import { createGroupId } from '@/utils/group';
 import { getLockedNodeIdSet } from '@/utils/lock';
 import {
+	clampNodeSize,
 	createLinkNode,
 	createTextNode,
 	duplicateNodes,
@@ -249,6 +250,41 @@ export function useCanvasCommands({
 		],
 	);
 
+	const resizeNode = useCallback(
+		(nodeId: string, deltaWidth: number, deltaHeight: number) => {
+			const node = nodes.find((candidate) => candidate.id === nodeId);
+
+			if (!node || lockedNodeIdSet.has(nodeId)) {
+				return false;
+			}
+
+			let width = clampNodeSize(node.width + deltaWidth);
+			let height = clampNodeSize(node.height + deltaHeight);
+
+			if (canvasBounds) {
+				width = Math.min(width, canvasBounds.x + canvasBounds.width - node.x);
+				height = Math.min(
+					height,
+					canvasBounds.y + canvasBounds.height - node.y,
+				);
+			}
+
+			if (width === node.width && height === node.height) {
+				return true;
+			}
+
+			commitNodes((currentNodes) =>
+				currentNodes.map((currentNode) =>
+					currentNode.id === nodeId
+						? { ...currentNode, width, height }
+						: currentNode,
+				),
+			);
+			return true;
+		},
+		[canvasBounds, commitNodes, lockedNodeIdSet, nodes],
+	);
+
 	const groupSelectedNodes = useCallback(() => {
 		const existingNodeIds = new Set(nodes.map((node) => node.id));
 		const groupNodeIds = effectiveSelectedNodeIds.filter((nodeId) =>
@@ -424,6 +460,7 @@ export function useCanvasCommands({
 		deleteSelectedNodes,
 		duplicateSelectedNodes,
 		moveSelectedNodes,
+		resizeNode,
 		groupSelectedNodes,
 		ungroupSelectedGroups,
 		toggleSelectedElementsLock,

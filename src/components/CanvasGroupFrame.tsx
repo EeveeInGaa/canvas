@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react';
-import type { PointerEvent } from 'react';
+import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react';
 
 import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types.ts';
 import { GROUP_FRAME_PADDING, getGroupRect } from '@/utils/group.ts';
@@ -11,6 +11,9 @@ type CanvasGroupFrameProps = {
 	nodes: CanvasNode[];
 	isDropTarget: boolean;
 	onElementChange: (groupId: string, element: HTMLDivElement | null) => void;
+	onFocus: (event: FocusEvent<HTMLDivElement>, group: CanvasGroup) => void;
+	onBlur: (event: FocusEvent<HTMLDivElement>) => void;
+	onKeyDown: (event: KeyboardEvent<HTMLDivElement>, group: CanvasGroup) => void;
 	onPointerDown: (
 		event: PointerEvent<HTMLDivElement>,
 		group: CanvasGroup,
@@ -31,6 +34,9 @@ export function CanvasGroupFrame({
 	nodes,
 	isDropTarget,
 	onElementChange,
+	onFocus,
+	onBlur,
+	onKeyDown,
 	onPointerDown,
 }: CanvasGroupFrameProps) {
 	const groupRect = getGroupRect(group, nodes);
@@ -54,9 +60,15 @@ export function CanvasGroupFrame({
 			data-group-id={group.id}
 			data-locked={group.isLocked || undefined}
 			data-selected={isSelected || undefined}
-			aria-label={group.isLocked ? 'Locked node group' : 'Node group'}
-			className={`pointer-events-none absolute z-[1] box-border rounded-2xl transition-[border-color,background-color,box-shadow] duration-[120ms] ease-[ease] ${frameStateClassName}`}
+			aria-describedby="canvas-keyboard-instructions"
+			aria-label={`${isSelected ? 'Selected ' : ''}${group.isLocked ? 'position-locked ' : ''}node group with ${group.nodeIds.length} items`}
+			className={`pointer-events-none absolute z-[1] box-border rounded-2xl transition-[border-color,background-color,box-shadow] duration-[120ms] ease-[ease] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${frameStateClassName}`}
+			data-canvas-focus-target="true"
 			role="group"
+			tabIndex={-1}
+			onFocus={(event) => onFocus(event, group)}
+			onBlur={onBlur}
+			onKeyDown={(event) => onKeyDown(event, group)}
 			style={{
 				left: groupRect.x - GROUP_FRAME_PADDING,
 				top: groupRect.y - GROUP_FRAME_PADDING,

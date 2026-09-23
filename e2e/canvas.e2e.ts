@@ -50,7 +50,7 @@ async function dragWithinCanvas(
 	start: { x: number; y: number },
 	end: { x: number; y: number },
 ) {
-	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
 	const canvasBox = await canvas.boundingBox();
 
 	if (!canvasBox) {
@@ -73,7 +73,7 @@ async function selectBothNodes(page: Page) {
 }
 
 async function getSelectionPoints(page: Page) {
-	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
 	const canvasBox = await canvas.boundingBox();
 	const nodeBoxes = await page.locator(nodeSelector).evaluateAll((elements) =>
 		elements.map((element) => {
@@ -109,7 +109,7 @@ async function getSelectionPoints(page: Page) {
 test.beforeEach(async ({ page }) => {
 	await page.goto('/');
 	await expect(
-		page.getByRole('application', { name: 'Canvas workspace' }),
+		page.getByRole('region', { name: 'Canvas workspace' }),
 	).toBeVisible();
 });
 
@@ -118,6 +118,92 @@ test('creates and edits a text node', async ({ page }) => {
 
 	await expect(node).toHaveAttribute('data-selected', 'true');
 	await expect(node.locator('textarea')).toHaveCount(0);
+});
+
+test('labels node editors and restores visible node focus after editing', async ({
+	page,
+}) => {
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
+	await canvas.focus();
+	await page.keyboard.press('t');
+
+	const textNode = page.locator(nodeSelector).first();
+	const textEditor = page.getByRole('textbox', { name: 'Text content' });
+	await expect(textEditor).toBeFocused();
+	await expect(textEditor).toHaveAttribute('name', 'text-content');
+	await expect(textEditor).toHaveAttribute('autocomplete', 'off');
+	await expect(textEditor).toHaveAttribute('spellcheck', 'true');
+	await expect(textEditor).toHaveCSS('outline-style', 'solid');
+	await textEditor.fill('Keyboard text');
+	await textEditor.press('Escape');
+	await expect(textNode).toBeFocused();
+
+	await page.keyboard.press('l');
+	const linkTitle = page.getByRole('textbox', { name: 'Link title' });
+	const linkUrl = page.getByRole('textbox', { name: 'Link URL' });
+	await expect(linkTitle).toBeFocused();
+	await expect(linkTitle).toHaveAttribute('name', 'link-title');
+	await expect(linkTitle).toHaveAttribute('autocomplete', 'off');
+	await expect(linkTitle).toHaveAttribute('spellcheck', 'true');
+	await linkTitle.fill('Project brief');
+	await page.keyboard.press('Tab');
+	await expect(linkUrl).toBeFocused();
+	await expect(linkUrl).toHaveAttribute('name', 'link-url');
+	await expect(linkUrl).toHaveAttribute('autocomplete', 'url');
+	await expect(linkUrl).toHaveAttribute('spellcheck', 'false');
+	await expect(linkUrl).toHaveCSS('outline-style', 'solid');
+});
+
+test('supports keyboard focus, selection, movement, resize, editing, and deletion', async ({
+	page,
+}) => {
+	await createSeparatedNodes(page);
+	const nodes = page.locator(nodeSelector);
+	const leftNode = page.getByRole('group', { name: /Text node: Left node/ });
+	const rightNode = page.getByRole('group', { name: /Text node: Right node/ });
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
+
+	await canvas.focus();
+	await page.keyboard.press('ArrowRight');
+	await expect(leftNode).toBeFocused();
+	await expect(leftNode).toHaveAttribute('data-selected', 'true');
+
+	await page.keyboard.press('Control+ArrowRight');
+	await expect(rightNode).toBeFocused();
+	await expect(rightNode).toHaveAttribute('data-selected', 'true');
+
+	const startCenter = await getNodeCenter(rightNode);
+	const startWidth = await rightNode.evaluate((element) =>
+		Number.parseFloat((element as HTMLElement).style.width),
+	);
+	await page.keyboard.press('ArrowRight');
+	expect(await getNodeCenter(rightNode)).toEqual({
+		x: startCenter.x + 5,
+		y: startCenter.y,
+	});
+
+	await page.keyboard.press('Alt+ArrowRight');
+	await expect
+		.poll(() =>
+			rightNode.evaluate((element) =>
+				Number.parseFloat((element as HTMLElement).style.width),
+			),
+		)
+		.toBe(startWidth + 5);
+
+	await page.keyboard.press('Enter');
+	await expect(
+		page.getByRole('textbox', { name: 'Text content' }),
+	).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(rightNode).toBeFocused();
+
+	await page.keyboard.press('Delete');
+	await expect(nodes).toHaveCount(1);
+	await expect(canvas).toBeFocused();
+
+	await page.keyboard.press('Tab');
+	await expect(page.getByLabel('Canvas size')).toBeFocused();
 });
 
 test('scrolls overflowing text inside a selected node without moving the canvas', async ({
@@ -157,7 +243,7 @@ test('scrolls overflowing text inside a selected node without moving the canvas'
 test('fills the viewport without moving the camera or existing nodes on resize', async ({
 	page,
 }) => {
-	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
 	const node = await createTextNode(page, 'Stable position');
 	const viewportLayer = page.locator('[data-canvas-viewport]');
 	const initialCanvasBox = await canvas.boundingBox();
@@ -227,7 +313,7 @@ test('replaces all node content with a skeleton below 60% zoom', async ({
 	await textEditor.fill('Release checklist');
 	await expect(textEditor).toBeFocused();
 
-	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
 
 	await canvas.dispatchEvent('wheel', { ctrlKey: true, deltaY: 60 });
 
@@ -262,7 +348,7 @@ test('changes zoom in ten-percent steps and resets it with Center', async ({
 	await slider.press('ArrowLeft');
 	await expect(page.getByRole('button', { name: 'Zoom: 90%' })).toBeVisible();
 
-	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
 
 	await canvas.dispatchEvent('wheel', { ctrlKey: true, deltaY: -5 });
 	await expect(page.getByRole('button', { name: 'Zoom: 95%' })).toBeVisible();
@@ -316,9 +402,12 @@ test('culls nodes outside the viewport and restores them before they enter', asy
 	page,
 }) => {
 	const node = await createTextNode(page, 'Far away node');
-	const canvas = page.getByRole('application', { name: 'Canvas workspace' });
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
 
 	await pressKey(page, 'Shift+ArrowRight', 50);
+	await expect(node).toBeFocused();
+	await expect(node).toHaveCount(1);
+	await canvas.focus();
 	await expect(node).toHaveCount(0);
 
 	await canvas.dispatchEvent('wheel', { deltaX: 200 });
@@ -467,7 +556,7 @@ test('locks and unlocks a node from the context menu', async ({ page }) => {
 	await page.getByRole('menuitem', { name: /Lock selection/ }).click();
 
 	await expect(node).toHaveAttribute('data-locked', 'true');
-	await expect(node).toHaveAccessibleName('Locked canvas node');
+	await expect(node).toHaveAccessibleName(/position-locked Text node/);
 	await expect(node.locator('[data-lock-indicator="node"]')).toHaveCount(1);
 
 	await page.keyboard.press('ArrowRight');
@@ -537,7 +626,7 @@ test('groups and ungroups the selected nodes', async ({ page }) => {
 
 	await page.keyboard.press('Control+g');
 
-	const group = page.getByRole('group', { name: 'Node group' });
+	const group = page.getByRole('group', { name: /node group with 2 items/i });
 	await expect(group).toHaveCount(1);
 	await expect(group).toHaveAttribute('data-selected', 'true');
 
@@ -563,7 +652,7 @@ test('locks and unlocks a group with the keyboard shortcut', async ({
 
 	await page.keyboard.press('Control+Shift+l');
 	await expect(group).toHaveAttribute('data-locked', 'true');
-	await expect(group).toHaveAccessibleName('Locked node group');
+	await expect(group).toHaveAccessibleName(/position-locked node group/);
 	await expect(group.locator('[data-lock-indicator="group"]')).toHaveCount(1);
 	await expect(nodes.locator('[data-lock-indicator]')).toHaveCount(0);
 

@@ -12,6 +12,7 @@ import { CanvasToolbar } from '@/components/toolbar/CanvasToolbar';
 import { useCanvasCommands } from '@/hooks/useCanvasCommands';
 import { useCanvasContextMenu } from '@/hooks/useCanvasContextMenu';
 import { useCanvasDocument } from '@/hooks/useCanvasDocument';
+import { useCanvasFocus } from '@/hooks/useCanvasFocus';
 import { useCanvasInteractions } from '@/hooks/useCanvasInteractions';
 import { useCanvasKeyboard } from '@/hooks/useCanvasKeyboard';
 import { useCanvasSelection } from '@/hooks/useCanvasSelection';
@@ -157,10 +158,12 @@ export function Canvas() {
 		},
 		[setViewportScale],
 	);
+	const moveDistance = isSnapEnabled ? SNAP_GRID_SIZE : 5;
+	const shiftMoveDistance = isSnapEnabled ? SNAP_GRID_SIZE * 2 : 20;
 
 	const { isSpacePressed } = useCanvasKeyboard({
-		moveDistance: isSnapEnabled ? SNAP_GRID_SIZE : 5,
-		shiftMoveDistance: isSnapEnabled ? SNAP_GRID_SIZE * 2 : 20,
+		moveDistance,
+		shiftMoveDistance,
 		onCenterViewport: centerViewportOnOrigin,
 		onCreateLinkNode: commands.createLinkNodeAtCanvasCenter,
 		onCreateTextNode: commands.createTextNodeAtCanvasCenter,
@@ -177,6 +180,46 @@ export function Canvas() {
 		onUngroup: commands.ungroupSelectedGroups,
 		onZoomBy: zoomBy,
 	});
+
+	const selectFocusedNode = useCallback(
+		(nodeId: string) => {
+			setSelectedNodeIds([nodeId]);
+			setSelectedGroupIds([]);
+		},
+		[setSelectedGroupIds, setSelectedNodeIds],
+	);
+	const selectFocusedGroup = useCallback(
+		(groupId: string) => {
+			setSelectedNodeIds([]);
+			setSelectedGroupIds([groupId]);
+		},
+		[setSelectedGroupIds, setSelectedNodeIds],
+	);
+	const focusController = useCanvasFocus({
+		canvasRef,
+		nodes,
+		groups,
+		moveDistance,
+		shiftMoveDistance,
+		onResizeNode: commands.resizeNode,
+		onSelectNode: selectFocusedNode,
+		onSelectGroup: selectFocusedGroup,
+		onStartEditing: commands.startNodeEditing,
+	});
+	const stopNodeEditing = useCallback(
+		(restoreNodeFocus = false) => {
+			const nodeId = editingNodeId;
+
+			commands.stopNodeEditing();
+
+			if (restoreNodeFocus && nodeId) {
+				requestAnimationFrame(() => {
+					focusController.focusTarget({ type: 'node', id: nodeId });
+				});
+			}
+		},
+		[commands.stopNodeEditing, editingNodeId, focusController.focusTarget],
+	);
 
 	const {
 		interaction,
@@ -224,11 +267,19 @@ export function Canvas() {
 			}),
 		[nodes, selectedNodeIdSet],
 	);
+	const groupedNodeIdSet = useMemo(
+		() => new Set(groups.flatMap((group) => group.nodeIds)),
+		[groups],
+	);
 	const retainedNodeIdSet = useMemo(() => {
 		const retainedNodeIds = new Set<string>();
 
 		if (editingNodeId !== null) {
 			retainedNodeIds.add(editingNodeId);
+		}
+
+		if (focusController.focusedTarget?.type === 'node') {
+			retainedNodeIds.add(focusController.focusedTarget.id);
 		}
 
 		if (interaction.type === 'dragging') {
@@ -240,7 +291,7 @@ export function Canvas() {
 		}
 
 		return retainedNodeIds;
-	}, [editingNodeId, interaction]);
+	}, [editingNodeId, focusController.focusedTarget, interaction]);
 	const viewportCanvasRect = useMemo(
 		() => getVisibleCanvasRect(viewport, canvasViewportSize),
 		[canvasViewportSize, viewport],
@@ -289,154 +340,262 @@ export function Canvas() {
 			viewportCanvasRect,
 		],
 	);
+	const focusAnnouncement = useMemo(() => {
+		const target = focusController.focusedTarget;
+
+		if (!target) {
+			return '';
+		}
+
+		if (target.type === 'group') {
+			const group = groups.find((candidate) => candidate.id === target.id);
+
+			if (!group) {
+				return '';
+			}
+
+			const state = selectedGroupIdSet.has(group.id) ? 'selected' : 'focused';
+
+			return `Node group ${state}. ${group.nodeIds.length} items. Position ${group.isLocked ? 'locked' : 'unlocked'}.`;
+		}
+
+		const node = nodes.find((candidate) => candidate.id === target.id);
+
+		if (!node) {
+			return '';
+		}
+
+		const state = selectedNodeIdSet.has(node.id) ? 'selected' : 'focused';
+
+		return `${node.type === 'text' ? 'Text' : 'Link'} node ${state}. Position ${lockedNodeIdSet.has(node.id) ? 'locked' : 'unlocked'}.`;
+	}, [
+		focusController.focusedTarget,
+		groups,
+		lockedNodeIdSet,
+		nodes,
+		selectedGroupIdSet,
+		selectedNodeIdSet,
+	]);
 
 	return (
-		<ContextMenu.Root
-			onOpenChange={contextMenu.setIsOpen}
-			open={contextMenu.isOpen}
-		>
-			<ContextMenu.Trigger
-				aria-label="Canvas workspace"
-				className="relative size-full touch-none overflow-hidden bg-canvas"
-				data-canvas-space={canvasSpace.kind}
-				role="application"
-				ref={canvasRef}
-				onPointerDown={handleCanvasPointerDown}
-				onPointerMove={handleCanvasPointerMove}
-				onPointerUp={handleCanvasPointerUp}
-				onPointerCancel={handleCanvasPointerCancel}
-				onContextMenu={contextMenu.handleContextMenu}
-				onPointerLeave={() => {
-					setCursorCanvasPosition(null);
-				}}
-				style={{
-					cursor: isSpacePressed
-						? interaction.type === 'panning'
-							? 'grabbing'
-							: 'grab'
-						: 'crosshair',
-				}}
+		<div className="relative size-full overflow-hidden bg-canvas">
+			<ContextMenu.Root
+				onOpenChange={contextMenu.setIsOpen}
+				open={contextMenu.isOpen}
 			>
-				{canvasBounds ? null : (
-					<CanvasGrid
-						visibleGridSize={gridMetrics.visibleGridSize}
-						offsetX={gridMetrics.offsetX}
-						offsetY={gridMetrics.offsetY}
-					/>
-				)}
-
-				<div
-					className="absolute left-0 top-0 origin-top-left"
-					data-canvas-viewport
+				<ContextMenu.Trigger
+					aria-describedby="canvas-keyboard-instructions"
+					aria-label="Canvas workspace"
+					className="absolute inset-0 touch-none overflow-hidden focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+					data-canvas-space={canvasSpace.kind}
+					role="region"
+					tabIndex={0}
+					ref={canvasRef}
+					onKeyDown={focusController.handleCanvasKeyDown}
+					onPointerDown={handleCanvasPointerDown}
+					onPointerMove={handleCanvasPointerMove}
+					onPointerUp={handleCanvasPointerUp}
+					onPointerCancel={handleCanvasPointerCancel}
+					onContextMenu={contextMenu.handleContextMenu}
+					onPointerLeave={() => {
+						setCursorCanvasPosition(null);
+					}}
 					style={{
-						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
+						cursor: isSpacePressed
+							? interaction.type === 'panning'
+								? 'grabbing'
+								: 'grab'
+							: 'crosshair',
 					}}
 				>
-					{canvasBounds ? (
-						<CanvasSurface
-							bounds={canvasBounds}
-							gridSize={gridMetrics.canvasGridSize}
+					{canvasBounds ? null : (
+						<CanvasGrid
+							visibleGridSize={gridMetrics.visibleGridSize}
+							offsetX={gridMetrics.offsetX}
+							offsetY={gridMetrics.offsetY}
 						/>
-					) : null}
-					{groups.map((group) => (
-						<CanvasGroupFrame
-							key={group.id}
-							group={group}
-							nodes={nodes}
-							isSelected={selectedGroupIdSet.has(group.id)}
-							isDragging={
-								interaction.type === 'dragging' &&
-								selectedGroupIdSet.has(group.id)
-							}
-							isDropTarget={dropTargetGroupId === group.id}
-							onPointerDown={handleGroupPointerDown}
-							onElementChange={registerGroupElement}
-						/>
-					))}
+					)}
 
-					{renderedNodes.map((node) => (
-						<CanvasNodeView
-							key={node.id}
-							node={node}
-							isPositionLocked={lockedNodeIdSet.has(node.id)}
-							isSelected={
-								selectedNodeIdSet.has(node.id) &&
-								!selectedGroupNodeIdSet.has(node.id)
-							}
-							isEditing={editingNodeId === node.id}
-							showContent={showNodeContent}
-							isDragging={
-								interaction.type === 'dragging' &&
-								interaction.nodeIds.includes(node.id)
-							}
-							onPointerDown={handleNodePointerDown}
-							onResizePointerDown={handleResizePointerDown}
-							onStartEditing={commands.startNodeEditing}
-							onStopEditing={commands.stopNodeEditing}
-							onTextChange={commands.updateNodeText}
-							onLinkChange={commands.updateLinkNode}
-							onElementChange={registerNodeElement}
-						/>
-					))}
+					<div
+						className="absolute left-0 top-0 origin-top-left"
+						data-canvas-viewport
+						style={{
+							transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
+						}}
+					>
+						{canvasBounds ? (
+							<CanvasSurface
+								bounds={canvasBounds}
+								gridSize={gridMetrics.canvasGridSize}
+							/>
+						) : null}
+						{groups.map((group) => (
+							<CanvasGroupFrame
+								key={group.id}
+								group={group}
+								nodes={nodes}
+								isSelected={selectedGroupIdSet.has(group.id)}
+								isDragging={
+									interaction.type === 'dragging' &&
+									selectedGroupIdSet.has(group.id)
+								}
+								isDropTarget={dropTargetGroupId === group.id}
+								onPointerDown={handleGroupPointerDown}
+								onElementChange={(groupId, element) => {
+									registerGroupElement(groupId, element);
+									focusController.registerTargetElement(
+										{ type: 'group', id: groupId },
+										element,
+									);
+								}}
+								onFocus={(event, focusedGroup) =>
+									focusController.handleTargetFocus(event, {
+										type: 'group',
+										id: focusedGroup.id,
+									})
+								}
+								onBlur={focusController.handleTargetBlur}
+								onKeyDown={(event, focusedGroup) =>
+									focusController.handleTargetKeyDown(event, {
+										type: 'group',
+										id: focusedGroup.id,
+									})
+								}
+							/>
+						))}
 
-					<CanvasSelectionBox rect={selectionRect} />
-				</div>
+						{renderedNodes.map((node) => (
+							<CanvasNodeView
+								key={node.id}
+								node={node}
+								isPositionLocked={lockedNodeIdSet.has(node.id)}
+								isKeyboardTarget={!groupedNodeIdSet.has(node.id)}
+								isSelected={
+									selectedNodeIdSet.has(node.id) &&
+									!selectedGroupNodeIdSet.has(node.id)
+								}
+								isEditing={editingNodeId === node.id}
+								showContent={showNodeContent}
+								isDragging={
+									interaction.type === 'dragging' &&
+									interaction.nodeIds.includes(node.id)
+								}
+								onPointerDown={handleNodePointerDown}
+								onResizePointerDown={handleResizePointerDown}
+								onStartEditing={commands.startNodeEditing}
+								onStopEditing={stopNodeEditing}
+								onTextChange={commands.updateNodeText}
+								onLinkChange={commands.updateLinkNode}
+								onElementChange={(nodeId, element) => {
+									registerNodeElement(nodeId, element);
 
-				<CanvasToolbar
-					canvasSpace={canvasSpace}
-					isDebugEnabled={isDebugEnabled}
-					isInfoOpen={isInfoOpen}
+									if (!groupedNodeIdSet.has(nodeId)) {
+										focusController.registerTargetElement(
+											{ type: 'node', id: nodeId },
+											element,
+										);
+									}
+								}}
+								onFocus={
+									groupedNodeIdSet.has(node.id)
+										? undefined
+										: (event, focusedNode) =>
+												focusController.handleTargetFocus(event, {
+													type: 'node',
+													id: focusedNode.id,
+												})
+								}
+								onBlur={
+									groupedNodeIdSet.has(node.id)
+										? undefined
+										: focusController.handleTargetBlur
+								}
+								onKeyDown={
+									groupedNodeIdSet.has(node.id)
+										? undefined
+										: (event, focusedNode) =>
+												focusController.handleTargetKeyDown(event, {
+													type: 'node',
+													id: focusedNode.id,
+												})
+								}
+							/>
+						))}
+
+						<CanvasSelectionBox rect={selectionRect} />
+					</div>
+
+					<div
+						aria-atomic="true"
+						aria-live="polite"
+						className="sr-only"
+						role="status"
+					>
+						{focusAnnouncement}
+					</div>
+					<p className="sr-only" id="canvas-keyboard-instructions">
+						Use an arrow key to enter the canvas. Use Control or Command plus an
+						arrow key to move between items. Press Enter to edit a node, arrow
+						keys to move the selection, Alt plus an arrow key to resize a node,
+						and Delete to remove the selection. Press Tab to leave the canvas.
+					</p>
+				</ContextMenu.Trigger>
+
+				<CanvasContextMenu
+					canGroup={
+						effectiveSelectedNodeIds.length > 1 &&
+						effectiveSelectedNodeIds.every(
+							(nodeId) => !lockedNodeIdSet.has(nodeId),
+						)
+					}
+					canUngroup={selectedGroupIds.length > 0}
+					isSelectionMenu={contextMenu.isSelectionMenu}
+					isSelectionLocked={isSelectionLocked}
 					isSnapEnabled={isSnapEnabled}
-					zoom={viewport.scale}
-					canRedo={documentController.canRedo}
-					canUndo={documentController.canUndo}
+					selectionCount={effectiveSelectedNodeIds.length}
 					onCenterViewport={centerViewportOnOrigin}
-					onCanvasSpaceChange={changeCanvasSpace}
-					onFitCanvas={fitCanvas}
-					isCanvasSpaceAvailable={isCanvasSpaceAvailable}
-					onInfoOpenChange={setIsInfoOpen}
-					onRedo={commands.redoDocument}
-					onToggleDebug={toggleDebug}
+					onCreateLinkNode={contextMenu.createLinkNode}
+					onCreateTextNode={contextMenu.createTextNode}
+					onDelete={contextMenu.deleteSelection}
+					onDuplicate={contextMenu.duplicateSelection}
+					onGroup={commands.groupSelectedNodes}
+					onToggleLock={commands.toggleSelectedElementsLock}
 					onToggleSnap={toggleSnap}
-					onUndo={commands.undoDocument}
-					onZoomChange={setViewportScale}
-					onCreateTextNode={commands.createTextNodeAtCanvasCenter}
-					onCreateLinkNode={commands.createLinkNodeAtCanvasCenter}
+					onUngroup={commands.ungroupSelectedGroups}
 				/>
+			</ContextMenu.Root>
 
-				{debugStats ? (
-					<CanvasDebugOverlay
-						position={cursorCanvasPosition}
-						stats={debugStats}
-						zoom={viewport.scale}
-						interactionType={interaction.type}
-						showNodeContent={showNodeContent}
-					/>
-				) : null}
-			</ContextMenu.Trigger>
-
-			<CanvasContextMenu
-				canGroup={
-					effectiveSelectedNodeIds.length > 1 &&
-					effectiveSelectedNodeIds.every(
-						(nodeId) => !lockedNodeIdSet.has(nodeId),
-					)
-				}
-				canUngroup={selectedGroupIds.length > 0}
-				isSelectionMenu={contextMenu.isSelectionMenu}
-				isSelectionLocked={isSelectionLocked}
+			<CanvasToolbar
+				canvasSpace={canvasSpace}
+				isDebugEnabled={isDebugEnabled}
+				isInfoOpen={isInfoOpen}
 				isSnapEnabled={isSnapEnabled}
-				selectionCount={effectiveSelectedNodeIds.length}
+				zoom={viewport.scale}
+				canRedo={documentController.canRedo}
+				canUndo={documentController.canUndo}
 				onCenterViewport={centerViewportOnOrigin}
-				onCreateLinkNode={contextMenu.createLinkNode}
-				onCreateTextNode={contextMenu.createTextNode}
-				onDelete={contextMenu.deleteSelection}
-				onDuplicate={contextMenu.duplicateSelection}
-				onGroup={commands.groupSelectedNodes}
-				onToggleLock={commands.toggleSelectedElementsLock}
+				onCanvasSpaceChange={changeCanvasSpace}
+				onFitCanvas={fitCanvas}
+				isCanvasSpaceAvailable={isCanvasSpaceAvailable}
+				onInfoOpenChange={setIsInfoOpen}
+				onRedo={commands.redoDocument}
+				onToggleDebug={toggleDebug}
 				onToggleSnap={toggleSnap}
-				onUngroup={commands.ungroupSelectedGroups}
+				onUndo={commands.undoDocument}
+				onZoomChange={setViewportScale}
+				onCreateTextNode={commands.createTextNodeAtCanvasCenter}
+				onCreateLinkNode={commands.createLinkNodeAtCanvasCenter}
 			/>
-		</ContextMenu.Root>
+
+			{debugStats ? (
+				<CanvasDebugOverlay
+					position={cursorCanvasPosition}
+					stats={debugStats}
+					zoom={viewport.scale}
+					interactionType={interaction.type}
+					showNodeContent={showNodeContent}
+				/>
+			) : null}
+		</div>
 	);
 }
