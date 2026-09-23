@@ -354,17 +354,17 @@ test('fills the viewport without moving the camera or existing nodes on resize',
 });
 
 test('offsets nodes created at the same canvas position', async ({ page }) => {
-	const nodes = page.locator(nodeSelector);
-
 	await page.getByRole('button', { name: 'Text', exact: true }).click();
-	await expect(nodes).toHaveCount(1);
+	const textNode = page.getByRole('group', { name: /Text node/ });
+	await expect(textNode).toHaveCount(1);
 	await page.keyboard.press('Escape');
 
 	await page.keyboard.press('l');
-	await expect(nodes).toHaveCount(2);
+	const linkNode = page.getByRole('group', { name: /Link node/ });
+	await expect(linkNode).toHaveCount(1);
 
-	const firstCenter = await getNodeCenter(nodes.nth(0));
-	const secondCenter = await getNodeCenter(nodes.nth(1));
+	const firstCenter = await getNodeCenter(textNode);
+	const secondCenter = await getNodeCenter(linkNode);
 
 	expect(secondCenter).toEqual({
 		x: firstCenter.x + 24,
@@ -499,6 +499,24 @@ test('culls nodes outside the viewport and restores them before they enter', asy
 	await canvas.dispatchEvent('wheel', { deltaX: 150 });
 	await expect(node).toContainText('Far away node');
 	await expect(node).toHaveAttribute('data-selected', 'true');
+});
+
+test('retains an active offscreen group and culls it when inactive', async ({
+	page,
+}) => {
+	await createSeparatedNodes(page);
+	await selectBothNodes(page);
+	await page.keyboard.press('Control+g');
+
+	const group = page.locator('[data-group-id]');
+	await group.focus();
+	await pressKey(page, 'Shift+ArrowRight', 70);
+	await expect(group).toBeFocused();
+	await expect(group).toHaveCount(1);
+
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
+	await canvas.click({ position: { x: 80, y: 80 } });
+	await expect(group).toHaveCount(0);
 });
 
 test('selects multiple nodes with a selection box in both directions', async ({
@@ -670,6 +688,89 @@ test('restores a cancelled resize without adding undo history', async ({
 		.toBe(startWidth);
 	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expect(node).toHaveAccessibleName(/Text node: Untitled/);
+});
+
+test('does not add undo history when a resize returns to its start size', async ({
+	page,
+}) => {
+	const node = await createTextNode(page, 'No-op resize');
+	const resizeHandle = node.locator('[data-resize-handle]');
+	const handleBox = await resizeHandle.boundingBox();
+
+	if (!handleBox) {
+		throw new Error('Resize handle must have a layout box');
+	}
+
+	const start = { x: handleBox.x + 3, y: handleBox.y + 3 };
+	await page.mouse.move(start.x, start.y);
+	await page.mouse.down();
+	await page.mouse.move(start.x + 30, start.y + 20);
+	await page.mouse.move(start.x, start.y);
+	await page.mouse.up();
+
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
+	await expect(node).toHaveAccessibleName(/Text node: Untitled/);
+});
+
+test('keeps a group frame aligned while resizing a member', async ({
+	page,
+}) => {
+	await createSeparatedNodes(page);
+	await selectBothNodes(page);
+	await page.keyboard.press('Control+g');
+
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
+	const group = page.locator('[data-group-id]');
+	const rightNode = page.getByRole('group', { name: /Text node: Right node/ });
+	await canvas.click({ position: { x: 80, y: 80 } });
+	await rightNode.click();
+
+	const startGroupBox = await group.boundingBox();
+	const resizeHandle = rightNode.locator('[data-resize-handle]');
+	const handleBox = await resizeHandle.boundingBox();
+
+	if (!startGroupBox || !handleBox) {
+		throw new Error('Group and resize handle must have layout boxes');
+	}
+
+	await page.mouse.move(handleBox.x + 3, handleBox.y + 3);
+	await page.mouse.down();
+	await page.mouse.move(handleBox.x + 43, handleBox.y + 33);
+
+	await expect
+		.poll(() => group.boundingBox())
+		.toMatchObject({
+			width: startGroupBox.width + 40,
+			height: startGroupBox.height + 30,
+		});
+
+	await page.mouse.up();
+});
+
+test('resets Space panning when the window loses focus', async ({ page }) => {
+	const canvas = page.getByRole('region', { name: 'Canvas workspace' });
+	const viewportLayer = page.locator('[data-canvas-viewport]');
+	const initialTransform = await viewportLayer.evaluate(
+		(element) => (element as HTMLElement).style.transform,
+	);
+
+	await canvas.focus();
+	await page.keyboard.down('Space');
+	await expect(canvas).toHaveCSS('cursor', 'grab');
+	await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+	await expect(canvas).toHaveCSS('cursor', 'crosshair');
+
+	await page.mouse.move(100, 100);
+	await page.mouse.down();
+	await page.mouse.move(180, 160);
+	await page.mouse.up();
+
+	expect(
+		await viewportLayer.evaluate(
+			(element) => (element as HTMLElement).style.transform,
+		),
+	).toBe(initialTransform);
+	await page.keyboard.up('Space');
 });
 
 test('moves a selected node by dragging it', async ({ page }) => {

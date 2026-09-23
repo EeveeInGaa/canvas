@@ -57,11 +57,13 @@ function canvasHistoryReducer<T>(
 			};
 		}
 
-		case 'replace':
-			return {
-				...state,
-				present: resolveStateAction(action.value, state.present),
-			};
+		case 'replace': {
+			const nextPresent = resolveStateAction(action.value, state.present);
+
+			return Object.is(nextPresent, state.present)
+				? state
+				: { ...state, present: nextPresent };
+		}
 
 		case 'record':
 			if (Object.is(action.previousValue, state.present)) {

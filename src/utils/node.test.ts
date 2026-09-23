@@ -4,7 +4,9 @@ import { type CanvasNode, CanvasNodeType } from '@/types/canvas-node.types';
 import {
 	createLinkNode,
 	createTextNode,
+	moveNodes,
 	offsetNodeFromOccupiedPosition,
+	resizeNode,
 } from '@/utils/node';
 
 function withId(node: CanvasNode, id: string): CanvasNode {
@@ -47,5 +49,23 @@ describe('offsetNodeFromOccupiedPosition', () => {
 			x: node.x + 48,
 			y: node.y + 48,
 		});
+	});
+});
+
+describe('geometry updates', () => {
+	const node = withId(createTextNode({ x: 200, y: 150 }), 'node');
+	const nodes = [node];
+
+	it('preserves node-array identity for zero-distance movement', () => {
+		expect(moveNodes(nodes, new Set(['node']), { x: 0, y: 0 })).toBe(nodes);
+	});
+
+	it('preserves node-array identity for an unchanged resize', () => {
+		expect(
+			resizeNode(nodes, 'node', {
+				width: node.width,
+				height: node.height,
+			}),
+		).toBe(nodes);
 	});
 });

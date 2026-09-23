@@ -1,14 +1,15 @@
 import { Lock } from 'lucide-react';
 import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react';
 
-import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types.ts';
-import { GROUP_FRAME_PADDING, getGroupRect } from '@/utils/group.ts';
+import type { CanvasGroup } from '@/types/canvas-node.types.ts';
+import type { Rect } from '@/types/geometry.types';
+import { GROUP_FRAME_PADDING } from '@/utils/group.ts';
 
 type CanvasGroupFrameProps = {
 	group: CanvasGroup;
 	isDragging: boolean;
 	isSelected: boolean;
-	nodes: CanvasNode[];
+	rect: Rect;
 	isDropTarget: boolean;
 	onElementChange: (groupId: string, element: HTMLDivElement | null) => void;
 	onFocus: (event: FocusEvent<HTMLDivElement>, group: CanvasGroup) => void;
@@ -31,7 +32,7 @@ export function CanvasGroupFrame({
 	group,
 	isDragging,
 	isSelected,
-	nodes,
+	rect,
 	isDropTarget,
 	onElementChange,
 	onFocus,
@@ -39,12 +40,6 @@ export function CanvasGroupFrame({
 	onKeyDown,
 	onPointerDown,
 }: CanvasGroupFrameProps) {
-	const groupRect = getGroupRect(group, nodes);
-
-	if (!groupRect) {
-		return null;
-	}
-
 	const frameStateClassName = isDropTarget
 		? `border-2 ${isSelected ? 'border-accent/[0.95]' : 'border-canvas-ink/[0.32]'} bg-accent/[0.05] shadow-[var(--canvas-selection-shadow)]`
 		: isSelected
@@ -70,10 +65,10 @@ export function CanvasGroupFrame({
 			onBlur={onBlur}
 			onKeyDown={(event) => onKeyDown(event, group)}
 			style={{
-				left: groupRect.x - GROUP_FRAME_PADDING,
-				top: groupRect.y - GROUP_FRAME_PADDING,
-				width: groupRect.width + GROUP_FRAME_PADDING * 2,
-				height: groupRect.height + GROUP_FRAME_PADDING * 2,
+				left: rect.x - GROUP_FRAME_PADDING,
+				top: rect.y - GROUP_FRAME_PADDING,
+				width: rect.width + GROUP_FRAME_PADDING * 2,
+				height: rect.height + GROUP_FRAME_PADDING * 2,
 			}}
 		>
 			{group.isLocked ? (

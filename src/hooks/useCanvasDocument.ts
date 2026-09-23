@@ -4,7 +4,7 @@ import { useCanvasHistory } from '@/hooks/useCanvasHistory';
 import type { CanvasDocument, CanvasNode } from '@/types/canvas-node.types';
 import type { CanvasSpace } from '@/types/canvas-space.types';
 import { canNodesFitCanvas, INFINITE_CANVAS_SPACE } from '@/utils/canvas-space';
-import { sanitizeGroups } from '@/utils/document';
+import { replaceCanvasDocumentNodes } from '@/utils/document';
 
 const INITIAL_CANVAS_DOCUMENT: CanvasDocument = {
 	canvasSpace: INFINITE_CANVAS_SPACE,
@@ -30,11 +30,7 @@ export function useCanvasDocument() {
 				const nextNodes =
 					typeof value === 'function' ? value(currentDocument.nodes) : value;
 
-				return {
-					...currentDocument,
-					nodes: nextNodes,
-					groups: sanitizeGroups(currentDocument.groups, nextNodes),
-				};
+				return replaceCanvasDocumentNodes(currentDocument, nextNodes);
 			});
 		},
 		[commitDocument],
@@ -46,11 +42,7 @@ export function useCanvasDocument() {
 				const nextNodes =
 					typeof value === 'function' ? value(currentDocument.nodes) : value;
 
-				return {
-					...currentDocument,
-					nodes: nextNodes,
-					groups: sanitizeGroups(currentDocument.groups, nextNodes),
-				};
+				return replaceCanvasDocumentNodes(currentDocument, nextNodes);
 			});
 		},
 		[replaceDocument],

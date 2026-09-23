@@ -91,3 +91,40 @@ export function duplicateNodes(nodes: CanvasNode[]): CanvasNode[] {
 export function clampNodeSize(value: number): number {
 	return Math.max(MINIMUM_NODE_SIZE, value);
 }
+
+export function moveNodes(
+	nodes: CanvasNode[],
+	nodeIds: ReadonlySet<string>,
+	delta: Point,
+): CanvasNode[] {
+	if (delta.x === 0 && delta.y === 0) {
+		return nodes;
+	}
+
+	return nodes.map((node) =>
+		nodeIds.has(node.id)
+			? { ...node, x: node.x + delta.x, y: node.y + delta.y }
+			: node,
+	);
+}
+
+export function resizeNode(
+	nodes: CanvasNode[],
+	nodeId: string,
+	size: { width: number; height: number },
+): CanvasNode[] {
+	let didChange = false;
+	const nextNodes = nodes.map((node) => {
+		if (
+			node.id !== nodeId ||
+			(node.width === size.width && node.height === size.height)
+		) {
+			return node;
+		}
+
+		didChange = true;
+		return { ...node, width: size.width, height: size.height };
+	});
+
+	return didChange ? nextNodes : nodes;
+}

@@ -14,6 +14,7 @@ import { useCanvasElementRegistry } from '@/hooks/interactions/useCanvasElementR
 import { useCanvasInteractionEnd } from '@/hooks/interactions/useCanvasInteractionEnd';
 import { useCanvasInteractionMove } from '@/hooks/interactions/useCanvasInteractionMove';
 import { useCanvasInteractionStart } from '@/hooks/interactions/useCanvasInteractionStart';
+import { useCanvasResizePreview } from '@/hooks/interactions/useCanvasResizePreview';
 import type {
 	CanvasDocument,
 	CanvasGroup,
@@ -24,22 +25,22 @@ import type { InteractionState } from '@/types/interaction.types';
 import type { Viewport } from '@/types/viewport.types';
 import { screenToCanvas } from '@/utils/coordinates';
 import { createRectFromPoints } from '@/utils/geometry';
+import type { GroupRectById, NodeById } from '@/utils/group';
 
 type UseCanvasInteractionsParams = {
 	canvasRef: RefObject<HTMLDivElement | null>;
-	canvasDocument: CanvasDocument;
 	canvasBounds: Rect | null;
 	groups: CanvasGroup[];
 	nodes: CanvasNode[];
+	nodeById: NodeById;
+	groupRectById: GroupRectById;
 	selectedNodeIds: string[];
 	lockedNodeIdSet: Set<string>;
 	viewport: Viewport;
 	isSpacePressed: boolean;
 	isSnapEnabled: boolean;
 	gridSize: number;
-	setNodes: Dispatch<SetStateAction<CanvasNode[]>>;
 	commitDocument: Dispatch<SetStateAction<CanvasDocument>>;
-	recordDocumentChange: (previousDocument: CanvasDocument) => void;
 	setSelectedNodeIds: Dispatch<SetStateAction<string[]>>;
 	selectedGroupIds: string[];
 	setSelectedGroupIds: Dispatch<SetStateAction<string[]>>;
@@ -77,10 +78,11 @@ type UseCanvasInteractionsResult = {
 
 export function useCanvasInteractions({
 	canvasRef,
-	canvasDocument,
 	canvasBounds,
 	groups,
 	nodes,
+	nodeById,
+	groupRectById,
 	selectedNodeIds,
 	lockedNodeIdSet,
 	selectedGroupIds,
@@ -88,9 +90,7 @@ export function useCanvasInteractions({
 	isSpacePressed,
 	isSnapEnabled,
 	gridSize,
-	setNodes,
 	commitDocument,
-	recordDocumentChange,
 	setSelectedNodeIds,
 	setSelectedGroupIds,
 	setViewport,
@@ -107,7 +107,15 @@ export function useCanvasInteractions({
 	const elementRegistry = useCanvasElementRegistry();
 	const dragPreview = useCanvasDragPreview({
 		groups,
-		nodes,
+		nodeById,
+		groupRectById,
+		nodeElementsRef: elementRegistry.nodeElementsRef,
+		groupElementsRef: elementRegistry.groupElementsRef,
+	});
+	const resizePreview = useCanvasResizePreview({
+		groups,
+		nodeById,
+		groupRectById,
 		nodeElementsRef: elementRegistry.nodeElementsRef,
 		groupElementsRef: elementRegistry.groupElementsRef,
 	});
@@ -142,7 +150,6 @@ export function useCanvasInteractions({
 	}, [interaction]);
 
 	const interactionStart = useCanvasInteractionStart({
-		canvasDocument,
 		groups,
 		nodes,
 		selectedNodeIds,
@@ -162,14 +169,16 @@ export function useCanvasInteractions({
 		interaction,
 		groups,
 		nodes,
+		nodeById,
+		groupRectById,
 		viewport,
 		isSnapEnabled,
 		gridSize,
 		canvasBounds,
 		getCanvasPosition,
 		dragPreview,
+		resizePreview,
 		setInteraction,
-		setNodes,
 		setSelectedNodeIds,
 		setSelectedGroupIds,
 		setViewport,
@@ -178,13 +187,11 @@ export function useCanvasInteractions({
 	});
 
 	const { handlePointerUp, handlePointerCancel } = useCanvasInteractionEnd({
-		canvasDocument,
 		interaction,
 		dragPreview,
+		resizePreview,
 		pointerCaptureTargetRef,
 		commitDocument,
-		recordDocumentChange,
-		setNodes,
 		setViewport,
 		setSelectedNodeIds,
 		setSelectedGroupIds,

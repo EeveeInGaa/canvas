@@ -23,7 +23,9 @@ import {
 	createLinkNode,
 	createTextNode,
 	duplicateNodes,
+	moveNodes,
 	offsetNodeFromOccupiedPosition,
+	resizeNode as resizeCanvasNode,
 } from '@/utils/node';
 
 type UseCanvasCommandsParams = {
@@ -226,16 +228,12 @@ export function useCanvasCommands({
 					canvasBounds,
 				);
 
+				if (constrainedDelta.x === 0 && constrainedDelta.y === 0) {
+					return true;
+				}
+
 				commitNodes((currentNodes) =>
-					currentNodes.map((node) =>
-						movableNodeIds.has(node.id)
-							? {
-									...node,
-									x: node.x + constrainedDelta.x,
-									y: node.y + constrainedDelta.y,
-								}
-							: node,
-					),
+					moveNodes(currentNodes, movableNodeIds, constrainedDelta),
 				);
 			}
 
@@ -274,11 +272,7 @@ export function useCanvasCommands({
 			}
 
 			commitNodes((currentNodes) =>
-				currentNodes.map((currentNode) =>
-					currentNode.id === nodeId
-						? { ...currentNode, width, height }
-						: currentNode,
-				),
+				resizeCanvasNode(currentNodes, nodeId, { width, height }),
 			);
 			return true;
 		},

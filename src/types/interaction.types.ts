@@ -1,5 +1,3 @@
-import type { CanvasDocument } from '@/types/canvas-node.types';
-
 export type SelectionMode = 'replace' | 'add' | 'toggle';
 
 export type ResizeHandle = 'bottom-right';
@@ -26,7 +24,6 @@ export type InteractionState =
 			startPointerY: number;
 			startWidth: number;
 			startHeight: number;
-			startDocument: CanvasDocument;
 	  }
 	| {
 			type: 'panning';

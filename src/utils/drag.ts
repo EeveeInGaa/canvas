@@ -7,7 +7,13 @@ import type { Point, Rect } from '@/types/geometry.types';
 import type { InteractionState } from '@/types/interaction.types';
 import { getConstrainedMovementDelta } from '@/utils/canvas-space';
 import { snapValueToGrid } from '@/utils/grid';
-import { findGroupDropTarget } from '@/utils/group';
+import {
+	createGroupRectById,
+	createNodeById,
+	findGroupDropTarget,
+	type GroupRectById,
+	type NodeById,
+} from '@/utils/group';
 
 export type DraggingInteraction = Extract<
 	InteractionState,
@@ -85,7 +91,8 @@ export function getDropTargetGroupId(
 	interaction: DraggingInteraction,
 	positions: NodePosition[],
 	groups: CanvasGroup[],
-	nodes: CanvasNode[],
+	nodeById: NodeById,
+	groupRectById: GroupRectById,
 ): string | null {
 	if (interaction.dragSource !== 'node' || interaction.nodeIds.length !== 1) {
 		return null;
@@ -95,7 +102,7 @@ export function getDropTargetGroupId(
 	const nextPosition = positions.find(
 		(position) => position.nodeId === draggedNodeId,
 	);
-	const draggedNode = nodes.find((node) => node.id === draggedNodeId);
+	const draggedNode = nodeById.get(draggedNodeId);
 
 	if (!draggedNode || !nextPosition) {
 		return null;
@@ -106,11 +113,7 @@ export function getDropTargetGroupId(
 		x: nextPosition.x,
 		y: nextPosition.y,
 	};
-	const previewNodes = nodes.map((node) =>
-		node.id === draggedNodeId ? positionedNode : node,
-	);
-
-	return findGroupDropTarget(positionedNode, groups, previewNodes)?.id ?? null;
+	return findGroupDropTarget(positionedNode, groups, groupRectById)?.id ?? null;
 }
 
 export function applyDraggedNodePositions(
@@ -149,10 +152,11 @@ export function applyDraggedNodePositions(
 		return { ...canvasDocument, nodes: nextNodes };
 	}
 
+	const nextNodeById = createNodeById(nextNodes);
 	const targetGroup = findGroupDropTarget(
 		draggedNode,
 		canvasDocument.groups,
-		nextNodes,
+		createGroupRectById(canvasDocument.groups, nextNodeById),
 	);
 
 	if (!targetGroup) {

@@ -5,7 +5,7 @@ import {
 	CanvasNodeType,
 } from '@/types/canvas-node.types';
 
-function areCanvasNodesEqual(
+export function areCanvasNodesEqual(
 	leftNodes: CanvasNode[],
 	rightNodes: CanvasNode[],
 ): boolean {
@@ -104,10 +104,43 @@ export function sanitizeGroups(
 ): CanvasGroup[] {
 	const nodeIds = new Set(nodes.map((node) => node.id));
 
-	return groups
-		.map((group) => ({
-			...group,
-			nodeIds: group.nodeIds.filter((nodeId) => nodeIds.has(nodeId)),
-		}))
-		.filter((group) => group.nodeIds.length > 1);
+	let didChange = false;
+	const sanitizedGroups: CanvasGroup[] = [];
+
+	for (const group of groups) {
+		const nextNodeIds = group.nodeIds.filter((nodeId) => nodeIds.has(nodeId));
+
+		if (nextNodeIds.length < 2) {
+			didChange = true;
+			continue;
+		}
+
+		if (nextNodeIds.length === group.nodeIds.length) {
+			sanitizedGroups.push(group);
+			continue;
+		}
+
+		didChange = true;
+		sanitizedGroups.push({ ...group, nodeIds: nextNodeIds });
+	}
+
+	return didChange ? sanitizedGroups : groups;
+}
+
+export function replaceCanvasDocumentNodes(
+	canvasDocument: CanvasDocument,
+	nodes: CanvasNode[],
+): CanvasDocument {
+	if (
+		Object.is(nodes, canvasDocument.nodes) ||
+		areCanvasNodesEqual(nodes, canvasDocument.nodes)
+	) {
+		return canvasDocument;
+	}
+
+	return {
+		...canvasDocument,
+		nodes,
+		groups: sanitizeGroups(canvasDocument.groups, nodes),
+	};
 }

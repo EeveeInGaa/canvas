@@ -1,29 +1,31 @@
-import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
+import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
-import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types';
+import type { CanvasGroup } from '@/types/canvas-node.types';
 import type { NodePosition } from '@/utils/drag';
 import { getBoundingRect } from '@/utils/geometry';
-import { GROUP_FRAME_PADDING } from '@/utils/group';
+import {
+	GROUP_FRAME_PADDING,
+	type GroupRectById,
+	type NodeById,
+} from '@/utils/group';
 
 type UseCanvasDragPreviewParams = {
 	groups: CanvasGroup[];
-	nodes: CanvasNode[];
+	nodeById: NodeById;
+	groupRectById: GroupRectById;
 	nodeElementsRef: RefObject<Map<string, HTMLDivElement>>;
 	groupElementsRef: RefObject<Map<string, HTMLDivElement>>;
 };
 
 export function useCanvasDragPreview({
 	groups,
-	nodes,
+	nodeById,
+	groupRectById,
 	nodeElementsRef,
 	groupElementsRef,
 }: UseCanvasDragPreviewParams) {
 	const animationFrameRef = useRef<number | null>(null);
 	const latestPositionsRef = useRef<NodePosition[] | null>(null);
-	const nodeById = useMemo(
-		() => new Map(nodes.map((node) => [node.id, node])),
-		[nodes],
-	);
 
 	const cancelScheduledPreview = useCallback(() => {
 		if (animationFrameRef.current === null) {
@@ -135,22 +137,7 @@ export function useCanvasDragPreview({
 				}
 
 				const groupElement = groupElementsRef.current.get(group.id);
-				const groupRect = getBoundingRect(
-					group.nodeIds.flatMap((nodeId) => {
-						const node = nodeById.get(nodeId);
-
-						return node
-							? [
-									{
-										x: node.x,
-										y: node.y,
-										width: node.width,
-										height: node.height,
-									},
-								]
-							: [];
-					}),
-				);
+				const groupRect = groupRectById.get(group.id);
 
 				if (groupElement && groupRect) {
 					groupElement.style.left = `${groupRect.x - GROUP_FRAME_PADDING}px`;
@@ -165,6 +152,7 @@ export function useCanvasDragPreview({
 	}, [
 		cancelScheduledPreview,
 		groupElementsRef,
+		groupRectById,
 		groups,
 		nodeById,
 		nodeElementsRef,

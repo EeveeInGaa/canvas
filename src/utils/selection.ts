@@ -2,7 +2,7 @@ import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types';
 import type { Rect } from '@/types/geometry.types';
 import type { SelectionMode } from '@/types/interaction.types';
 import { doRectsIntersect } from '@/utils/geometry';
-import { doesRectIntersectGroupFrame } from '@/utils/group';
+import { doesRectIntersectGroupFrame, type GroupRectById } from '@/utils/group';
 
 export type CanvasSelection = {
 	nodeIds: string[];
@@ -89,9 +89,14 @@ export function getSelectionInRect(
 	rect: Rect,
 	groups: CanvasGroup[],
 	nodes: CanvasNode[],
+	groupRectById: GroupRectById,
 ): CanvasSelection {
 	const groupIds = groups
-		.filter((group) => doesRectIntersectGroupFrame(rect, group, nodes))
+		.filter((group) => {
+			const groupRect = groupRectById.get(group.id);
+
+			return groupRect ? doesRectIntersectGroupFrame(rect, groupRect) : false;
+		})
 		.map((group) => group.id);
 	const selectedGroupIdSet = new Set(groupIds);
 	const groupedNodeIds = new Set(

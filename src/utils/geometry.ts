@@ -33,10 +33,17 @@ export function getBoundingRect(rects: Rect[]): Rect | null {
 		return null;
 	}
 
-	const minX = Math.min(...rects.map((rect) => rect.x));
-	const minY = Math.min(...rects.map((rect) => rect.y));
-	const maxX = Math.max(...rects.map((rect) => rect.x + rect.width));
-	const maxY = Math.max(...rects.map((rect) => rect.y + rect.height));
+	let minX = Number.POSITIVE_INFINITY;
+	let minY = Number.POSITIVE_INFINITY;
+	let maxX = Number.NEGATIVE_INFINITY;
+	let maxY = Number.NEGATIVE_INFINITY;
+
+	for (const rect of rects) {
+		minX = Math.min(minX, rect.x);
+		minY = Math.min(minY, rect.y);
+		maxX = Math.max(maxX, rect.x + rect.width);
+		maxY = Math.max(maxY, rect.y + rect.height);
+	}
 
 	return {
 		x: minX,

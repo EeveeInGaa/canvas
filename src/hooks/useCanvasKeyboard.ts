@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const ARROW_DIRECTIONS: Partial<Record<string, readonly [number, number]>> = {
 	ArrowUp: [0, -1],
@@ -33,29 +33,34 @@ type UseCanvasKeyboardResult = {
 	isSpacePressed: boolean;
 };
 
-export function useCanvasKeyboard({
-	moveDistance,
-	shiftMoveDistance,
-	onCenterViewport,
-	onCreateLinkNode,
-	onCreateTextNode,
-	onDelete,
-	onDuplicate,
-	onToggleDebug,
-	onToggleInfo,
-	onToggleSnap,
-	onToggleLockSelection,
-	onMoveSelection,
-	onZoomBy,
-	onGroup,
-	onUngroup,
-	onUndo,
-	onRedo,
-}: UseCanvasKeyboardParams): UseCanvasKeyboardResult {
+export function useCanvasKeyboard(
+	params: UseCanvasKeyboardParams,
+): UseCanvasKeyboardResult {
 	const [isSpacePressed, setIsSpacePressed] = useState(false);
+	const paramsRef = useRef(params);
+	paramsRef.current = params;
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
+			const {
+				moveDistance,
+				shiftMoveDistance,
+				onCenterViewport,
+				onCreateLinkNode,
+				onCreateTextNode,
+				onDelete,
+				onDuplicate,
+				onToggleDebug,
+				onToggleInfo,
+				onToggleSnap,
+				onToggleLockSelection,
+				onMoveSelection,
+				onZoomBy,
+				onGroup,
+				onUngroup,
+				onUndo,
+				onRedo,
+			} = paramsRef.current;
 			const target = event.target;
 			const key = event.key.toLowerCase();
 			const isInShortcutsUi =
@@ -212,35 +217,20 @@ export function useCanvasKeyboard({
 				setIsSpacePressed(false);
 			}
 		};
+		const handleWindowBlur = () => {
+			setIsSpacePressed(false);
+		};
 
 		window.addEventListener('keydown', handleKeyDown);
-
 		window.addEventListener('keyup', handleKeyUp);
+		window.addEventListener('blur', handleWindowBlur);
 
 		return () => {
 			window.removeEventListener('keydown', handleKeyDown);
-
 			window.removeEventListener('keyup', handleKeyUp);
+			window.removeEventListener('blur', handleWindowBlur);
 		};
-	}, [
-		moveDistance,
-		onCenterViewport,
-		onCreateLinkNode,
-		onCreateTextNode,
-		onDelete,
-		onDuplicate,
-		onGroup,
-		onMoveSelection,
-		onRedo,
-		onToggleDebug,
-		onToggleInfo,
-		onToggleLockSelection,
-		onToggleSnap,
-		onUndo,
-		onUngroup,
-		onZoomBy,
-		shiftMoveDistance,
-	]);
+	}, []);
 
 	return {
 		isSpacePressed,

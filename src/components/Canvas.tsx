@@ -25,6 +25,11 @@ import { canNodesFitCanvas, getCanvasBounds } from '@/utils/canvas-space';
 import { getCanvasDebugStats } from '@/utils/debug';
 import { doRectsIntersect } from '@/utils/geometry';
 import { getGridMetrics, SNAP_GRID_SIZE } from '@/utils/grid';
+import {
+	createGroupRectById,
+	createNodeById,
+	getGroupFrameRect,
+} from '@/utils/group';
 import { getLockedNodeIdSet } from '@/utils/lock';
 import {
 	getVisibleCanvasRect,
@@ -90,6 +95,11 @@ export function Canvas() {
 
 	const gridMetrics = getGridMetrics({ viewport });
 	const showNodeContent = viewport.scale >= NODE_CONTENT_ZOOM_THRESHOLD;
+	const nodeById = useMemo(() => createNodeById(nodes), [nodes]);
+	const groupRectById = useMemo(
+		() => createGroupRectById(groups, nodeById),
+		[groups, nodeById],
+	);
 	const lockedNodeIdSet = useMemo(
 		() => getLockedNodeIdSet(nodes, groups),
 		[nodes, groups],
@@ -100,14 +110,12 @@ export function Canvas() {
 		}
 
 		return (
-			selectedNodeIds.every(
-				(nodeId) => nodes.find((node) => node.id === nodeId)?.isLocked,
-			) &&
+			selectedNodeIds.every((nodeId) => nodeById.get(nodeId)?.isLocked) &&
 			selectedGroupIds.every(
 				(groupId) => groups.find((group) => group.id === groupId)?.isLocked,
 			)
 		);
-	}, [groups, nodes, selectedGroupIds, selectedNodeIds]);
+	}, [groups, nodeById, selectedGroupIds, selectedNodeIds]);
 
 	useEffect(() => {
 		if (showNodeContent || editingNodeId === null) {
@@ -236,19 +244,18 @@ export function Canvas() {
 		handleResizePointerDown,
 	} = useCanvasInteractions({
 		canvasRef,
-		canvasDocument,
 		canvasBounds,
 		groups,
 		nodes,
+		nodeById,
+		groupRectById,
 		selectedNodeIds,
 		lockedNodeIdSet,
 		viewport,
 		isSpacePressed,
 		isSnapEnabled,
 		gridSize: SNAP_GRID_SIZE,
-		setNodes: documentController.replaceNodes,
 		commitDocument: documentController.commitDocument,
-		recordDocumentChange: documentController.recordDocumentChange,
 		setSelectedNodeIds,
 		selectedGroupIds,
 		setSelectedGroupIds,
@@ -314,6 +321,53 @@ export function Canvas() {
 			),
 		[orderedNodes, retainedNodeIdSet, renderingCanvasRect],
 	);
+	const retainedGroupIdSet = useMemo(() => {
+		const retainedGroupIds = new Set(selectedGroupIds);
+
+		if (focusController.focusedTarget?.type === 'group') {
+			retainedGroupIds.add(focusController.focusedTarget.id);
+		}
+
+		if (dropTargetGroupId) {
+			retainedGroupIds.add(dropTargetGroupId);
+		}
+
+		const manipulatedNodeIds =
+			interaction.type === 'dragging'
+				? new Set(interaction.nodeIds)
+				: interaction.type === 'resizing'
+					? new Set([interaction.nodeId])
+					: null;
+
+		if (manipulatedNodeIds) {
+			for (const group of groups) {
+				if (group.nodeIds.some((nodeId) => manipulatedNodeIds.has(nodeId))) {
+					retainedGroupIds.add(group.id);
+				}
+			}
+		}
+
+		return retainedGroupIds;
+	}, [
+		dropTargetGroupId,
+		focusController.focusedTarget,
+		groups,
+		interaction,
+		selectedGroupIds,
+	]);
+	const renderedGroups = useMemo(
+		() =>
+			groups.flatMap((group) => {
+				const groupRect = groupRectById.get(group.id);
+
+				return groupRect &&
+					(retainedGroupIdSet.has(group.id) ||
+						doRectsIntersect(getGroupFrameRect(groupRect), renderingCanvasRect))
+					? [{ group, rect: groupRect }]
+					: [];
+			}),
+		[groups, groupRectById, renderingCanvasRect, retainedGroupIdSet],
+	);
 	const debugStats = useMemo(
 		() =>
 			isDebugEnabled
@@ -359,7 +413,7 @@ export function Canvas() {
 			return `Node group ${state}. ${group.nodeIds.length} items. Position ${group.isLocked ? 'locked' : 'unlocked'}.`;
 		}
 
-		const node = nodes.find((candidate) => candidate.id === target.id);
+		const node = nodeById.get(target.id);
 
 		if (!node) {
 			return '';
@@ -372,7 +426,7 @@ export function Canvas() {
 		focusController.focusedTarget,
 		groups,
 		lockedNodeIdSet,
-		nodes,
+		nodeById,
 		selectedGroupIdSet,
 		selectedNodeIdSet,
 	]);
@@ -429,11 +483,11 @@ export function Canvas() {
 								gridSize={gridMetrics.canvasGridSize}
 							/>
 						) : null}
-						{groups.map((group) => (
+						{renderedGroups.map(({ group, rect }) => (
 							<CanvasGroupFrame
 								key={group.id}
 								group={group}
-								nodes={nodes}
+								rect={rect}
 								isSelected={selectedGroupIdSet.has(group.id)}
 								isDragging={
 									interaction.type === 'dragging' &&

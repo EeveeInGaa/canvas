@@ -10,16 +10,17 @@ import { SNAP_GRID_SIZE } from '@/utils/grid.ts';
 
 export const GROUP_FRAME_PADDING = SNAP_GRID_SIZE;
 
+export type NodeById = ReadonlyMap<string, CanvasNode>;
+export type GroupRectById = ReadonlyMap<string, Rect>;
+
 export function createGroupId(): string {
 	return crypto.randomUUID();
 }
 
 export function getGroupRect(
 	group: CanvasGroup,
-	nodes: CanvasNode[],
+	nodeById: NodeById,
 ): Rect | null {
-	const nodeById = new Map(nodes.map((node) => [node.id, node]));
-
 	const groupRects = group.nodeIds
 		.map((nodeId) => nodeById.get(nodeId))
 		.filter((node) => node !== undefined)
@@ -28,18 +29,26 @@ export function getGroupRect(
 	return getBoundingRect(groupRects);
 }
 
+export function createNodeById(nodes: CanvasNode[]): NodeById {
+	return new Map(nodes.map((node) => [node.id, node]));
+}
+
+export function createGroupRectById(
+	groups: CanvasGroup[],
+	nodeById: NodeById,
+): GroupRectById {
+	return new Map(
+		groups.flatMap((group) => {
+			const rect = getGroupRect(group, nodeById);
+
+			return rect ? [[group.id, rect] as const] : [];
+		}),
+	);
+}
+
 export const GROUP_FRAME_HIT_THICKNESS = 8;
 
-export function getGroupFrameRect(
-	group: CanvasGroup,
-	nodes: CanvasNode[],
-): Rect | null {
-	const groupRect = getGroupRect(group, nodes);
-
-	if (!groupRect) {
-		return null;
-	}
-
+export function getGroupFrameRect(groupRect: Rect): Rect {
 	return {
 		x: groupRect.x - GROUP_FRAME_PADDING,
 		y: groupRect.y - GROUP_FRAME_PADDING,
@@ -50,14 +59,9 @@ export function getGroupFrameRect(
 
 export function doesRectIntersectGroupFrame(
 	rect: Rect,
-	group: CanvasGroup,
-	nodes: CanvasNode[],
+	groupRect: Rect,
 ): boolean {
-	const frameRect = getGroupFrameRect(group, nodes);
-
-	if (!frameRect) {
-		return false;
-	}
+	const frameRect = getGroupFrameRect(groupRect);
 
 	const frameParts: Rect[] = [
 		{
@@ -92,7 +96,7 @@ export function doesRectIntersectGroupFrame(
 export function findGroupDropTarget(
 	node: CanvasNode,
 	groups: CanvasGroup[],
-	nodes: CanvasNode[],
+	groupRectById: GroupRectById,
 ): CanvasGroup | null {
 	const nodeCenter: Point = {
 		x: node.x + node.width / 2,
@@ -105,7 +109,8 @@ export function findGroupDropTarget(
 				return false;
 			}
 
-			const frameRect = getGroupFrameRect(group, nodes);
+			const groupRect = groupRectById.get(group.id);
+			const frameRect = groupRect ? getGroupFrameRect(groupRect) : null;
 
 			return frameRect !== null && isPointInsideRect(nodeCenter, frameRect);
 		}) ?? null

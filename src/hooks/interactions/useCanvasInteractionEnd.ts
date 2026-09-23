@@ -7,20 +7,19 @@ import {
 } from 'react';
 
 import type { CanvasDragPreview } from '@/hooks/interactions/useCanvasDragPreview';
-import type { CanvasDocument, CanvasNode } from '@/types/canvas-node.types';
+import type { CanvasResizePreview } from '@/hooks/interactions/useCanvasResizePreview';
+import type { CanvasDocument } from '@/types/canvas-node.types';
 import type { InteractionState } from '@/types/interaction.types';
 import type { Viewport } from '@/types/viewport.types';
-import { areCanvasDocumentsEqual } from '@/utils/document';
 import { applyDraggedNodePositions } from '@/utils/drag';
+import { resizeNode } from '@/utils/node';
 
 type UseCanvasInteractionEndParams = {
-	canvasDocument: CanvasDocument;
 	interaction: InteractionState;
 	dragPreview: CanvasDragPreview;
+	resizePreview: CanvasResizePreview;
 	pointerCaptureTargetRef: RefObject<HTMLDivElement | null>;
 	commitDocument: Dispatch<SetStateAction<CanvasDocument>>;
-	recordDocumentChange: (previousDocument: CanvasDocument) => void;
-	setNodes: Dispatch<SetStateAction<CanvasNode[]>>;
 	setViewport: Dispatch<SetStateAction<Viewport>>;
 	setSelectedNodeIds: Dispatch<SetStateAction<string[]>>;
 	setSelectedGroupIds: Dispatch<SetStateAction<string[]>>;
@@ -29,13 +28,11 @@ type UseCanvasInteractionEndParams = {
 };
 
 export function useCanvasInteractionEnd({
-	canvasDocument,
 	interaction,
 	dragPreview,
+	resizePreview,
 	pointerCaptureTargetRef,
 	commitDocument,
-	recordDocumentChange,
-	setNodes,
 	setViewport,
 	setSelectedNodeIds,
 	setSelectedGroupIds,
@@ -77,22 +74,41 @@ export function useCanvasInteractionEnd({
 				);
 			}
 
-			if (
-				interaction.type === 'resizing' &&
-				!areCanvasDocumentsEqual(interaction.startDocument, canvasDocument)
-			) {
-				recordDocumentChange(interaction.startDocument);
+			if (interaction.type === 'resizing') {
+				const latestSize = resizePreview.latestSizeRef.current;
+
+				if (
+					latestSize &&
+					(latestSize.width !== interaction.startWidth ||
+						latestSize.height !== interaction.startHeight)
+				) {
+					commitDocument((currentDocument) => {
+						const nextNodes = resizeNode(
+							currentDocument.nodes,
+							interaction.nodeId,
+							latestSize,
+						);
+
+						return Object.is(nextNodes, currentDocument.nodes)
+							? currentDocument
+							: { ...currentDocument, nodes: nextNodes };
+					});
+					resizePreview.completePreview();
+				} else {
+					resizePreview.clearPreview();
+				}
 			}
 
 			resetInteraction();
 		},
 		[
-			canvasDocument,
 			commitDocument,
 			dragPreview.latestPositionsRef,
 			interaction,
-			recordDocumentChange,
 			releasePointerCapture,
+			resizePreview.clearPreview,
+			resizePreview.completePreview,
+			resizePreview.latestSizeRef,
 			resetInteraction,
 		],
 	);
@@ -102,7 +118,7 @@ export function useCanvasInteractionEnd({
 			releasePointerCapture(event.pointerId);
 
 			if (interaction.type === 'resizing') {
-				setNodes(interaction.startDocument.nodes);
+				resizePreview.clearPreview();
 			} else if (interaction.type === 'panning') {
 				setViewport((currentViewport) => ({
 					...currentViewport,
@@ -120,7 +136,7 @@ export function useCanvasInteractionEnd({
 			interaction,
 			releasePointerCapture,
 			resetInteraction,
-			setNodes,
+			resizePreview.clearPreview,
 			setSelectedGroupIds,
 			setSelectedNodeIds,
 			setViewport,

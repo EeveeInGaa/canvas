@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types';
+import { createGroupRectById, createNodeById } from '@/utils/group';
 import {
 	getEffectiveSelectedNodeIds,
 	getSelectionInRect,
@@ -33,6 +34,7 @@ const nodes: CanvasNode[] = [
 const groups: CanvasGroup[] = [
 	{ id: 'group', isLocked: false, nodeIds: ['grouped'] },
 ];
+const groupRectById = createGroupRectById(groups, createNodeById(nodes));
 
 describe('getSelectionInRect', () => {
 	it('selects an ungrouped node when the selection partially overlaps it', () => {
@@ -41,6 +43,7 @@ describe('getSelectionInRect', () => {
 				{ x: 25, y: 25, width: 10, height: 10 },
 				groups,
 				nodes,
+				groupRectById,
 			),
 		).toEqual({ nodeIds: ['ungrouped'], groupIds: [] });
 	});
@@ -51,6 +54,7 @@ describe('getSelectionInRect', () => {
 				{ x: 40, y: 40, width: 10, height: 10 },
 				groups,
 				nodes,
+				groupRectById,
 			),
 		).toEqual({ nodeIds: [], groupIds: [] });
 	});
@@ -61,6 +65,7 @@ describe('getSelectionInRect', () => {
 				{ x: 70, y: 70, width: 20, height: 20 },
 				groups,
 				nodes,
+				groupRectById,
 			),
 		).toEqual({ nodeIds: [], groupIds: ['group'] });
 	});

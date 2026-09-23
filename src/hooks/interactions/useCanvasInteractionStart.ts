@@ -7,11 +7,7 @@ import {
 	useMemo,
 } from 'react';
 
-import type {
-	CanvasDocument,
-	CanvasGroup,
-	CanvasNode,
-} from '@/types/canvas-node.types';
+import type { CanvasGroup, CanvasNode } from '@/types/canvas-node.types';
 import type { Point } from '@/types/geometry.types';
 import type {
 	InteractionState,
@@ -25,7 +21,6 @@ import {
 } from '@/utils/selection';
 
 type UseCanvasInteractionStartParams = {
-	canvasDocument: CanvasDocument;
 	groups: CanvasGroup[];
 	nodes: CanvasNode[];
 	selectedNodeIds: string[];
@@ -42,7 +37,6 @@ type UseCanvasInteractionStartParams = {
 };
 
 export function useCanvasInteractionStart({
-	canvasDocument,
 	groups,
 	nodes,
 	selectedNodeIds,
@@ -325,11 +319,9 @@ export function useCanvasInteractionStart({
 				startPointerY: event.clientY,
 				startWidth: node.width,
 				startHeight: node.height,
-				startDocument: canvasDocument,
 			});
 		},
 		[
-			canvasDocument,
 			lockedNodeIdSet,
 			pointerCaptureTargetRef,
 			setEditingNodeId,
