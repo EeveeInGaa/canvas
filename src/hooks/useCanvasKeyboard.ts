@@ -7,7 +7,7 @@ const ARROW_DIRECTIONS: Partial<Record<string, readonly [number, number]>> = {
 	ArrowLeft: [-1, 0],
 };
 
-const KEYBOARD_ZOOM_STEP = 0.2;
+const KEYBOARD_ZOOM_STEP = 0.1;
 
 type UseCanvasKeyboardParams = {
 	moveDistance: number;
