@@ -8,6 +8,6 @@ export const DESTRUCTIVE_MENU_ITEM_CLASS_NAME = `${MENU_ITEM_LAYOUT_CLASS_NAME} 
 export const MENU_LABEL_CLASS_NAME = 'ps-[5px] pe-[18px] whitespace-nowrap';
 
 export const MENU_POPUP_CLASS_NAME =
-	'box-border min-w-56 rounded-[10px] border border-canvas-ink/[0.13] bg-panel/[0.98] p-[5px] text-canvas-ink/[0.88] shadow-[var(--canvas-menu-shadow)] outline-none';
+	'box-border min-w-56 rounded-[10px] border border-control-border bg-panel/[0.98] p-[5px] text-canvas-ink/[0.88] shadow-[var(--canvas-menu-shadow)] outline-none';
 
 export const MENU_POSITIONER_CLASS_NAME = 'z-[100] outline-none';

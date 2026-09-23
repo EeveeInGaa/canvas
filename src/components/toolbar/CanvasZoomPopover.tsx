@@ -52,7 +52,7 @@ export function CanvasZoomPopover({
 		<Popover.Root>
 			<Popover.Trigger
 				aria-label={`Zoom: ${zoomPercentage}%`}
-				className="flex min-w-[58px] cursor-pointer items-center justify-center gap-1 rounded-full border border-canvas-ink/[0.14] bg-panel px-2.5 py-1.5 text-xs font-semibold tabular-nums text-canvas-ink/[0.82] transition-[background-color,border-color,color,transform] duration-[120ms] ease-[ease] hover:border-accent/50 hover:bg-panel-hover hover:text-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus active:scale-[0.97] data-[popup-open]:border-accent/[0.65] data-[popup-open]:bg-accent data-[popup-open]:text-accent-contrast motion-reduce:transition-none"
+				className="flex min-w-[58px] cursor-pointer items-center justify-center gap-1 rounded-full border border-control-border bg-panel px-2.5 py-1.5 text-xs font-semibold tabular-nums text-canvas-ink/[0.82] transition-[background-color,border-color,color,transform] duration-[120ms] ease-[ease] hover:border-control-border-hover hover:bg-panel-hover hover:text-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus active:scale-[0.97] data-[popup-open]:border-control-border-selected data-[popup-open]:bg-accent data-[popup-open]:text-accent-contrast motion-reduce:transition-none"
 				onPointerDown={(event) => event.stopPropagation()}
 			>
 				<span>{zoomPercentage}%</span>
@@ -74,7 +74,7 @@ export function CanvasZoomPopover({
 					sideOffset={8}
 				>
 					<Popover.Popup
-						className={`${styles.popupMotion} w-[230px] rounded-[14px] border border-canvas-ink/[0.14] bg-panel/[0.98] p-3.5 text-canvas-ink/[0.84] shadow-[var(--canvas-popover-shadow)] outline-none backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus`}
+						className={`${styles.popupMotion} w-[230px] rounded-[14px] border border-control-border bg-panel/[0.98] p-3.5 text-canvas-ink/[0.84] shadow-[var(--canvas-popover-shadow)] outline-none backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus`}
 						onPointerDown={(event) => event.stopPropagation()}
 					>
 						<Slider.Root
@@ -99,7 +99,7 @@ export function CanvasZoomPopover({
 
 							<button
 								aria-label="Zoom out"
-								className="grid size-7 cursor-pointer place-items-center rounded-full border border-canvas-ink/[0.12] bg-canvas text-base leading-none text-canvas-ink/70 transition-colors hover:border-accent/50 hover:text-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-35"
+								className="grid size-7 cursor-pointer place-items-center rounded-full border border-control-border bg-canvas text-base leading-none text-canvas-ink/70 transition-colors hover:border-control-border-hover hover:text-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:border-control-border-disabled disabled:border-dashed disabled:text-canvas-muted"
 								disabled={zoomPercentage <= MIN_ZOOM_PERCENTAGE}
 								onClick={zoomOut}
 								type="button"
@@ -108,7 +108,7 @@ export function CanvasZoomPopover({
 							</button>
 
 							<Slider.Control className="flex h-7 touch-none select-none items-center">
-								<Slider.Track className="relative h-1 w-full rounded-full bg-canvas-ink/[0.12]">
+								<Slider.Track className="relative h-1 w-full rounded-full bg-control-border">
 									<Slider.Indicator className="rounded-full bg-accent" />
 									<Slider.Thumb
 										className={`${styles.sliderThumb} size-4 rounded-full border-2 border-panel bg-accent shadow-[0_1px_4px_rgb(31_36_48_/_28%)]`}
@@ -120,7 +120,7 @@ export function CanvasZoomPopover({
 
 							<button
 								aria-label="Zoom in"
-								className="grid size-7 cursor-pointer place-items-center rounded-full border border-canvas-ink/[0.12] bg-canvas text-base leading-none text-canvas-ink/70 transition-colors hover:border-accent/50 hover:text-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-35"
+								className="grid size-7 cursor-pointer place-items-center rounded-full border border-control-border bg-canvas text-base leading-none text-canvas-ink/70 transition-colors hover:border-control-border-hover hover:text-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:border-control-border-disabled disabled:border-dashed disabled:text-canvas-muted"
 								disabled={zoomPercentage >= MAX_ZOOM_PERCENTAGE}
 								onClick={zoomIn}
 								type="button"

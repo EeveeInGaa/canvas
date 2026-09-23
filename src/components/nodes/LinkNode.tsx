@@ -74,7 +74,7 @@ export function LinkNode({
 				</label>
 				<input
 					autoComplete="off"
-					className="w-full border-0 border-canvas-ink/[0.16] border-b bg-transparent px-0 pt-1 pb-2 font-[inherit] font-semibold text-canvas-ink/[0.92] outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+					className="w-full border-0 border-control-border border-b bg-transparent px-0 pt-1 pb-2 font-[inherit] font-semibold text-canvas-ink/[0.92] outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
 					id={titleInputId}
 					name="link-title"
 					ref={labelInputRef}

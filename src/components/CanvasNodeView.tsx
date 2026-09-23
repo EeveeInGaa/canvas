@@ -64,10 +64,11 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 	const nodeDetailClassName = showContent
 		? ''
 		: `${styles.skeleton} ${styles[node.type]}`;
+	const nodeEditingClassName = isContentEditing ? styles.editing : '';
 	const nodeStateClassName = `${
 		isSelected
-			? 'border-2 border-accent/[0.95]'
-			: 'border border-canvas-ink/[0.14]'
+			? 'border-2 border-control-border-selected'
+			: 'border border-control-border'
 	} ${isPositionLocked ? 'cursor-not-allowed' : isDragging ? 'cursor-grabbing' : 'cursor-grab'} ${
 		isContentEditing ? 'select-text' : 'select-none'
 	}`;
@@ -80,7 +81,7 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: a canvas node is a composite focus target, not a form fieldset
 		<div
-			className={`absolute isolate box-border touch-none overflow-hidden rounded-xl bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${nodeStateClassName} ${nodeDetailClassName}`}
+			className={`absolute isolate box-border touch-none overflow-hidden rounded-xl bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${nodeStateClassName} ${nodeDetailClassName} ${nodeEditingClassName}`}
 			aria-describedby={
 				isKeyboardTarget ? 'canvas-keyboard-instructions' : undefined
 			}
@@ -95,6 +96,7 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 			}}
 			data-node-id={node.id}
 			data-node-detail={showContent ? 'full' : 'skeleton'}
+			data-node-editing={isContentEditing || undefined}
 			data-node-skeleton={!showContent || undefined}
 			onPointerDown={(event) => {
 				onPointerDown(event, node);
@@ -120,7 +122,7 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 		>
 			{node.isLocked ? (
 				<span
-					className="pointer-events-none absolute top-1.5 right-1.5 z-[2] grid size-5 place-items-center rounded-full border border-canvas-ink/15 bg-panel/95 text-canvas-ink/65 shadow-sm"
+					className="pointer-events-none absolute top-1.5 right-1.5 z-[2] grid size-5 place-items-center rounded-full border border-control-border bg-panel/95 text-canvas-ink/65 shadow-sm"
 					data-lock-indicator="node"
 				>
 					<Lock aria-hidden="true" className="size-3" strokeWidth={1.6} />
@@ -155,7 +157,7 @@ export const CanvasNodeView = memo(function CanvasNodeView({
 						onResizePointerDown(event, node);
 					}}
 				>
-					<div className="relative size-1.5 rounded-full bg-accent/50" />
+					<div className="relative size-1.5 rounded-full bg-accent" />
 				</div>
 			)}
 		</div>

@@ -56,7 +56,7 @@ export function CanvasToolbar({
 			? canvasSpace.orientation
 			: CanvasOrientation.Portrait;
 	const selectClassName =
-		'h-8 cursor-pointer rounded-full border border-canvas-ink/[0.14] bg-panel px-3 text-xs font-semibold text-canvas-ink/[0.82] outline-none transition-colors hover:border-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-45';
+		'h-8 cursor-pointer rounded-full border border-control-border bg-panel px-3 text-xs font-semibold text-canvas-ink/[0.82] outline-none transition-colors hover:border-control-border-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:border-control-border-disabled disabled:border-dashed disabled:text-canvas-muted';
 
 	return (
 		<>

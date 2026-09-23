@@ -41,10 +41,10 @@ export function CanvasGroupFrame({
 	onPointerDown,
 }: CanvasGroupFrameProps) {
 	const frameStateClassName = isDropTarget
-		? `border-2 ${isSelected ? 'border-accent/[0.95]' : 'border-canvas-ink/[0.32]'} bg-accent/[0.05] shadow-[var(--canvas-selection-shadow)]`
+		? 'border-2 border-control-border-selected bg-accent/[0.05] shadow-[var(--canvas-selection-shadow)]'
 		: isSelected
-			? 'border border-accent/[0.9] bg-transparent shadow-none'
-			: 'border border-accent/[0.45] bg-transparent shadow-none';
+			? 'border border-control-border-selected bg-transparent shadow-none'
+			: 'border border-control-border bg-transparent shadow-none';
 
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: in this case fieldset would not make sense
@@ -73,7 +73,7 @@ export function CanvasGroupFrame({
 		>
 			{group.isLocked ? (
 				<span
-					className="pointer-events-none absolute -top-2.5 right-2 z-[2] grid size-5 place-items-center rounded-full border border-canvas-ink/15 bg-panel text-canvas-ink/65 shadow-sm"
+					className="pointer-events-none absolute -top-2.5 right-2 z-[2] grid size-5 place-items-center rounded-full border border-control-border bg-panel text-canvas-ink/65 shadow-sm"
 					data-lock-indicator="group"
 				>
 					<Lock aria-hidden="true" className="size-3" strokeWidth={1.6} />

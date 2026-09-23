@@ -168,7 +168,9 @@ test('labels node editors and restores visible node focus after editing', async 
 	await expect(textEditor).toHaveAttribute('name', 'text-content');
 	await expect(textEditor).toHaveAttribute('autocomplete', 'off');
 	await expect(textEditor).toHaveAttribute('spellcheck', 'true');
-	await expect(textEditor).toHaveCSS('outline-style', 'solid');
+	await expect(textEditor).toHaveCSS('outline-style', 'none');
+	await expect(textNode).toHaveAttribute('data-node-editing', 'true');
+	await expect(textNode).not.toHaveCSS('box-shadow', 'none');
 	await textEditor.fill('Keyboard text');
 	await textEditor.press('Escape');
 	await expect(textNode).toBeFocused();

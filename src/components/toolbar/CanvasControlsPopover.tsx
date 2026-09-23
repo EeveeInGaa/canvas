@@ -31,7 +31,7 @@ function ShortcutList({ shortcuts }: ShortcutListProps) {
 										+
 									</span>
 								)}
-								<kbd className="min-w-[23px] rounded-[5px] border border-canvas-ink/[0.13] border-b-canvas-ink/20 bg-key px-1.5 py-1 text-center font-[inherit] text-[10px] leading-none font-semibold text-canvas-ink/[0.82] shadow-[var(--canvas-key-shadow)]">
+								<kbd className="min-w-[23px] rounded-[5px] border border-control-border bg-key px-1.5 py-1 text-center font-[inherit] text-[10px] leading-none font-semibold text-canvas-ink/[0.82] shadow-[var(--canvas-key-shadow)]">
 									{key}
 								</kbd>
 							</span>
@@ -56,7 +56,7 @@ export function CanvasControlsPopover({
 		<Popover.Root open={isOpen} onOpenChange={onOpenChange}>
 			<Popover.Trigger
 				aria-label="Show canvas controls"
-				className="grid size-[30px] cursor-pointer place-items-center rounded-full border border-canvas-ink/[0.14] bg-panel font-serif text-sm leading-none font-bold text-canvas-ink/[0.72] transition-[background-color,border-color,color,transform] duration-[120ms] ease-[ease] hover:border-accent/50 hover:bg-panel-hover hover:text-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus active:scale-[0.94] data-[popup-open]:border-accent/[0.65] data-[popup-open]:bg-accent data-[popup-open]:text-accent-contrast motion-reduce:transition-none"
+				className="grid size-[30px] cursor-pointer place-items-center rounded-full border border-control-border bg-panel font-serif text-sm leading-none font-bold text-canvas-ink/[0.72] transition-[background-color,border-color,color,transform] duration-[120ms] ease-[ease] hover:border-control-border-hover hover:bg-panel-hover hover:text-accent-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus active:scale-[0.94] data-[popup-open]:border-control-border-selected data-[popup-open]:bg-accent data-[popup-open]:text-accent-contrast motion-reduce:transition-none"
 				data-canvas-shortcuts-trigger=""
 				onPointerDown={(event) => event.stopPropagation()}
 			>
@@ -72,7 +72,7 @@ export function CanvasControlsPopover({
 					sideOffset={8}
 				>
 					<Popover.Popup
-						className={`${styles.popupMotion} box-border max-h-[calc(100vh-24px)] w-[min(320px,calc(100vw-24px))] overflow-y-auto rounded-[14px] border border-canvas-ink/[0.14] bg-panel/[0.98] p-4 text-canvas-ink/[0.84] shadow-[var(--canvas-popover-shadow)] outline-none backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus`}
+						className={`${styles.popupMotion} box-border max-h-[calc(100vh-24px)] w-[min(320px,calc(100vw-24px))] overflow-y-auto rounded-[14px] border border-control-border bg-panel/[0.98] p-4 text-canvas-ink/[0.84] shadow-[var(--canvas-popover-shadow)] outline-none backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus`}
 						data-canvas-shortcuts-dialog=""
 						onPointerDown={(event) => event.stopPropagation()}
 					>

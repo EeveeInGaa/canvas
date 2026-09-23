@@ -86,7 +86,7 @@ export function CanvasDebugOverlay({
 	return (
 		<aside
 			aria-label="Canvas debug information"
-			className="pointer-events-none absolute right-3 bottom-3 z-10 w-[270px] overflow-hidden rounded-xl border border-canvas-ink/[0.14] bg-panel/[0.94] font-mono text-[11px] leading-[1.45] text-canvas-ink/[0.82] shadow-[var(--canvas-popover-shadow)] backdrop-blur-xl"
+			className="pointer-events-none absolute right-3 bottom-3 z-10 w-[270px] overflow-hidden rounded-xl border border-control-border bg-panel/[0.94] font-mono text-[11px] leading-[1.45] text-canvas-ink/[0.82] shadow-[var(--canvas-popover-shadow)] backdrop-blur-xl"
 			data-testid="canvas-debug-overlay"
 		>
 			<div className="flex items-center justify-between px-3 py-2">

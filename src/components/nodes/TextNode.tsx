@@ -37,7 +37,7 @@ export function TextNode({
 			<textarea
 				aria-label="Text content"
 				autoComplete="off"
-				className="h-full w-full resize-none overflow-y-auto overscroll-contain border-0 bg-transparent p-3 font-[inherit] text-canvas-ink/[0.9] outline-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+				className="h-full w-full resize-none overflow-y-auto overscroll-contain border-0 bg-transparent p-3 font-[inherit] text-canvas-ink/[0.9] caret-accent outline-none selection:bg-accent/25 focus-visible:bg-accent/[0.04]"
 				data-node-scroll-container={isSelected || undefined}
 				name="text-content"
 				ref={textareaRef}
